@@ -245,5 +245,6 @@ $('model').addEventListener('input', () => {
 // 隐私政策链接
 $('privacyLink').addEventListener('click', (e) => {
   e.preventDefault();
-  window.open('https://26c1a7c0d0164f32a6b689a30a8274f0.app.codebuddy.work/privacy.html', '_blank');
+  const returnUrl = encodeURIComponent(chrome.runtime.getURL('options.html'));
+  window.open('https://26c1a7c0d0164f32a6b689a30a8274f0.app.codebuddy.work/privacy.html?return=' + returnUrl, '_blank');
 });

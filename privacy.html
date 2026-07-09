@@ -69,13 +69,14 @@
       }
       .back:hover { text-decoration: underline; }
       .back svg { width: 16px; height: 16px; }
+    </style>
 </head>
 <body>
   <div class="wrap">
     <div class="card">
-      <a href="https://github.com/renhairong/bilingual-translator" class="back" target="_blank">
+      <a href="https://github.com/renhairong/bilingual-translator" class="back" id="backLink" target="_blank">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-        返回 GitHub 仓库
+        <span id="backText">返回 GitHub 仓库</span>
       </a>
       <h1>隐私政策</h1>
       <p class="updated">最后更新：2026 年 7 月 9 日</p>
@@ -159,5 +160,23 @@
       </div>
     </div>
   </div>
+
+  <script>
+    (function() {
+      var params = new URLSearchParams(window.location.search);
+      var returnUrl = params.get('return');
+      if (returnUrl) {
+        var link = document.getElementById('backLink');
+        var text = document.getElementById('backText');
+        link.href = '#';
+        link.target = '_self';
+        text.textContent = '返回设置页';
+        link.addEventListener('click', function(e) {
+          e.preventDefault();
+          window.close();
+        });
+      }
+    })();
+  </script>
 </body>
 </html>
