@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      :root {
+        --bg: #f5f6f8;
+        --card: #ffffff;
+        --ink: #16171c;
+        --ink-2: #565d6a;
+        --muted: #9aa0ab;
+        --line: #ebedf0;
+        --brand: #4f46e5;
+        --brand-600: #4338ca;
+        --brand-soft: #eef0fe;
+        --radius: 16px;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+          "Microsoft YaHei", sans-serif;
+        -webkit-font-smoothing: antialiased;
+        min-height: 100vh;
+        padding: 56px 20px 72px;
+        display: flex;
+        justify-content: center;
+      }
+
+      .wrap { width: 100%; max-width: 540px; }
+
+      /* 品牌头部 */
+      .brand { display: flex; align-items: center; gap: 14px; margin-bottom: 32px; }
+      .logo {
+        width: 46px; height: 46px; border-radius: 13px;
+        object-fit: cover;
+        box-shadow: 0 8px 20px rgba(79, 70, 229, 0.35);
+      }
+      .brand h1 { margin: 0; font-size: 20px; font-weight: 650; letter-spacing: 0.2px; }
+      .brand p { margin: 3px 0 0; font-size: 13px; color: var(--muted); }
+
+      /* 卡片 */
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 26px 24px;
+        margin-bottom: 16px;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 10px 30px rgba(16, 24, 40, 0.05);
+      }
+      .card-title {
+        font-size: 13px; font-weight: 600; color: var(--ink);
+        letter-spacing: 0.3px; margin: 0 0 22px;
+        display: flex; align-items: center;
+      }
+      .card-title::before {
+        content: ""; width: 7px; height: 7px; border-radius: 50%;
+        background: var(--brand); margin-right: 9px;
+      }
+
+      .field { margin-bottom: 20px; }
+      .field:last-child { margin-bottom: 0; }
+      .field > label {
+        display: block; margin-bottom: 8px;
+        font-size: 13px; font-weight: 550; color: var(--ink-2);
+      }
+      .hint { font-size: 12px; color: var(--muted); margin-top: 7px; line-height: 1.55; }
+
+      input[type="text"], input[type="password"], select {
+        width: 100%; padding: 11px 13px;
+        border: 1px solid var(--line); border-radius: 10px;
+        font-size: 14px; color: var(--ink); background: #fff;
+        font-family: inherit; transition: border-color 0.18s, box-shadow 0.18s;
+      }
+      input::placeholder { color: #c2c6cf; }
+      input:focus, select:focus {
+        outline: none; border-color: var(--brand);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+      }
+      input:hover:not(:focus), select:hover:not(:focus) { border-color: #d9dce2; }
+
+      .input-wrap { position: relative; }
+      .input-wrap input { padding-right: 42px; }
+      .eye-btn {
+        position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+        width: 28px; height: 28px; border: none; background: transparent;
+        cursor: pointer; display: flex; align-items: center; justify-content: center;
+        color: var(--muted); border-radius: 6px; transition: 0.15s; padding: 0;
+      }
+      .eye-btn:hover { background: #f3f4f6; color: var(--ink-2); }
+      .eye-btn svg { width: 18px; height: 18px; stroke-width: 1.8; }
+
+      /* 错误状态 */
+      input.input-error {
+        border-color: #ef4444 !important;
+        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+      }
+      .required-star {
+        color: #ef4444;
+        margin-left: 2px;
+        font-weight: 600;
+      }
+      .error-msg {
+        display: none;
+        margin-top: 6px;
+        font-size: 12px;
+        color: #ef4444;
+        line-height: 1.4;
+      }
+      .error-msg.show { display: block; }
+
+      select {
+        appearance: none; -webkit-appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23565d6a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat: no-repeat; background-position: right 13px center;
+        background-size: 14px; padding-right: 38px; cursor: pointer;
+      }
+
+      .model-grid { display: grid; grid-template-columns: 1fr 160px; gap: 10px; }
+
+      /* 预设 pills */
+      .presets { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+      .preset-pill {
+        padding: 7px 15px; border: 1px solid var(--line); border-radius: 999px;
+        font-size: 13px; color: var(--ink-2); background: #fff; cursor: pointer;
+        transition: all 0.18s; font-family: inherit;
+      }
+      .preset-pill:hover { border-color: var(--brand); color: var(--brand); }
+      .preset-pill.active {
+        background: var(--brand-soft); border-color: var(--brand);
+        color: var(--brand); font-weight: 550;
+      }
+
+      /* 开关行 */
+      .toggle { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+      .toggle-label { font-size: 14px; font-weight: 550; color: var(--ink); }
+      .toggle-sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+      .switch { position: relative; width: 46px; height: 27px; flex-shrink: 0; }
+      .switch input { opacity: 0; width: 0; height: 0; }
+      .slider {
+        position: absolute; inset: 0; background: #d8dae0; border-radius: 999px;
+        transition: 0.22s;
+      }
+      .slider::before {
+        content: ""; position: absolute; width: 21px; height: 21px; left: 3px; top: 3px;
+        background: #fff; border-radius: 50%; transition: 0.22s;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.22);
+      }
+      .switch input:checked + .slider { background: var(--brand); }
+      .switch input:checked + .slider::before { transform: translateX(19px); }
+
+      /* 颜色选择 */
+      .color-field { display: flex; align-items: center; gap: 12px; }
+      input[type="color"] {
+        -webkit-appearance: none; appearance: none;
+        width: 40px; height: 40px; border: none; border-radius: 11px;
+        background: none; cursor: pointer; padding: 0;
+      }
+      input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+      input[type="color"]::-webkit-color-swatch { border: 1px solid var(--line); border-radius: 11px; }
+      .color-val { font-size: 13px; color: var(--ink-2); font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+
+      /* 恢复默认按钮 */
+      .reset-color-btn {
+        display: none;
+        padding: 0 0 0 4px;
+        font-size: 12px; color: var(--muted); background: none;
+        border: none; cursor: pointer; font-family: inherit;
+        line-height: 1; transition: color 0.15s;
+      }
+      .reset-color-btn.show { display: inline; }
+      .reset-color-btn:hover { color: var(--brand); }
+
+      /* 语言选择 */
+      .lang-row { display: flex; align-items: center; gap: 10px; }
+      .lang-row select {
+        flex: 1; padding: 10px 12px; padding-right: 34px;
+        border: 1px solid var(--line); border-radius: 10px;
+        font-size: 14px; color: var(--ink); background: #fff;
+        font-family: inherit; cursor: pointer;
+        appearance: none; -webkit-appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239aa0ab' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat: no-repeat; background-position: right 10px center;
+        transition: border-color 0.18s, box-shadow 0.18s;
+      }
+      .lang-row select:focus {
+        outline: none; border-color: var(--brand);
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+      }
+      .lang-row select:hover:not(:focus) { border-color: #d9dce2; }
+      .lang-arrow {
+        flex-shrink: 0; width: 20px; height: 20px;
+        color: var(--muted);
+      }
+
+      /* 保存 */
+      .actions { margin-top: 24px; }
+      .btn-save {
+        width: 100%; background: var(--brand); color: #fff; border: none;
+        padding: 14px; border-radius: 12px; font-size: 14.5px; font-weight: 600;
+        cursor: pointer; transition: 0.2s; font-family: inherit;
+        box-shadow: 0 6px 16px rgba(79, 70, 229, 0.28);
+      }
+      .btn-save:hover { background: var(--brand-600); transform: translateY(-1px); box-shadow: 0 8px 20px rgba(79, 70, 229, 0.34); }
+      .btn-save:active { transform: translateY(0); }
+      .status {
+        margin-top: 14px; text-align: center; font-size: 13px;
+        color: var(--brand); opacity: 0; transition: opacity 0.25s;
+      }
+      .status.show { opacity: 1; }
+
+      .note {
+        margin-top: 22px; text-align: center; font-size: 12px; color: var(--muted);
+        line-height: 1.6;
+      }
+      .copyright {
+        margin-top: 14px; text-align: center; font-size: 12px; color: var(--muted);
+      }
+      .copyright a {
+        color: var(--brand); text-decoration: none;
+      }
+      .copyright a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="brand">
+        <img src="icon-128.png" class="logo" alt="双语 AI 翻译" />
+        <div>
+          <h1>双语 AI 翻译</h1>
+          <p>配置你的翻译引擎与显示偏好</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">模型配置</div>
+
+        <div class="field">
+          <label for="baseUrl">API Base URL<span class="required-star">*</span></label>
+          <input id="baseUrl" type="text" placeholder="https://api.deepseek.com/v1" />
+          <div class="error-msg" id="baseUrlError"></div>
+          <div class="hint">OpenAI 兼容接口地址，通常以 <code>/v1</code> 结尾。</div>
+        </div>
+
+        <div class="field">
+          <label for="apiKey">API Key<span class="required-star">*</span></label>
+          <div class="input-wrap">
+            <input id="apiKey" type="password" placeholder="sk-..." />
+            <div class="error-msg" id="apiKeyError"></div>
+            <button class="eye-btn" id="toggleEye" type="button" title="显示/隐藏">
+              <svg id="eyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="model">模型名称<span class="required-star">*</span></label>
+          <input id="model" type="text" placeholder="deepseek-chat" />
+          <div class="error-msg" id="modelError"></div>
+          <div class="presets">
+            <button class="preset-pill" data-key="deepseek" data-m="deepseek-chat" data-u="https://api.deepseek.com/v1">DeepSeek</button>
+            <button class="preset-pill" data-key="qwen" data-m="qwen-plus" data-u="https://dashscope.aliyuncs.com/compatible-mode/v1">Qwen</button>
+            <button class="preset-pill" data-key="glm" data-m="glm-4-plus" data-u="https://open.bigmodel.cn/api/paas/v4">GLM</button>
+          </div>
+          <div class="hint">点击预设自动填充，也可手动填写你自己的模型（如 qwen3.7 / glm-5.2）。</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">显示与外观</div>
+
+        <div class="field">
+          <div class="toggle">
+            <div>
+              <div class="toggle-label">自动翻译</div>
+              <div class="toggle-sub">开启后，打开英文网页自动翻译</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="autoTranslate" />
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="mode">显示模式</label>
+          <select id="mode">
+            <option value="bilingual">双语对照（原文在上，译文在下）</option>
+            <option value="zh-only">仅显示译文</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>翻译语言</label>
+          <div class="lang-row">
+            <select id="sourceLang">
+              <option value="auto">自动检测</option>
+              <option value="en">English</option>
+              <option value="zh-CN">简体中文</option>
+              <option value="ja">日本語</option>
+              <option value="ko">한국어</option>
+              <option value="es">Español</option>
+              <option value="de">Deutsch</option>
+              <option value="fr">Français</option>
+            </select>
+            <svg class="lang-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+            <select id="targetLang">
+              <option value="zh-CN">简体中文</option>
+              <option value="en">English</option>
+              <option value="ja">日本語</option>
+              <option value="ko">한국어</option>
+              <option value="es">Español</option>
+              <option value="de">Deutsch</option>
+              <option value="fr">Français</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>译文颜色</label>
+          <div class="color-field">
+            <input id="zhColor" type="color" value="#6b7280" />
+            <span class="color-val" id="zhColorVal">#6b7280</span>
+            <button class="reset-color-btn" id="resetColor" type="button">恢复默认</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn-save" id="save">保存设置</button>
+        <div class="status" id="status">已保存 ✓</div>
+      </div>
+
+      <div class="note">你的 API Key 仅保存在本地浏览器，不会上传到任何服务器。</div>
+
+      <div class="copyright">© mrleocc 所有 · 反馈：<a href="mailto:mrleocc88@gmail.com">mrleocc88@gmail.com</a></div>
+    </div>
+
+    <script src="options.js"></script>
+  </body>
+</html>

@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "双语 AI 翻译",
+  "version": "0.2.0",
+  "description": "双语 AI 翻译 - 自动翻译网页为中文，保留双语对照，支持 DeepSeek / Qwen / GLM 等 OpenAI 兼容模型。Bilingual AI translation with dual-language display, powered by any OpenAI-compatible API.",
+  "icons": {
+    "16": "icon-16.png",
+    "48": "icon-48.png",
+    "128": "icon-128.png"
+  },
+  "permissions": ["storage", "unlimitedStorage"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_page": "options.html",
+  "action": {
+    "default_icon": { "16": "icon-16.png", "48": "icon-48.png" },
+    "default_popup": "popup.html",
+    "default_title": "双语 AI 翻译"
+  }
+}

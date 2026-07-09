@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>隐私政策 - 双语 AI 翻译</title>
+  <style>
+    :root {
+      --bg: #f5f6f8;
+      --card: #ffffff;
+      --ink: #16171c;
+      --ink-2: #565d6a;
+      --muted: #9aa0ab;
+      --line: #ebedf0;
+      --brand: #4f46e5;
+      --radius: 16px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Microsoft YaHei", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      padding: 48px 20px 64px;
+      display: flex;
+      justify-content: center;
+    }
+    .wrap { width: 100%; max-width: 680px; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 32px 28px;
+      box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 10px 30px rgba(16, 24, 40, 0.05);
+    }
+
+    h1 {
+      font-size: 22px; font-weight: 700; margin: 0 0 6px;
+    }
+    .updated {
+      font-size: 13px; color: var(--muted); margin: 0 0 24px;
+    }
+    h2 {
+      font-size: 15px; font-weight: 650; margin: 24px 0 10px;
+    }
+    p, li {
+      font-size: 14px; line-height: 1.7; color: var(--ink-2); margin: 0 0 8px;
+    }
+    ul { padding-left: 20px; margin: 0 0 12px; }
+    li { margin-bottom: 4px; }
+    strong { color: var(--ink); }
+    code {
+      background: #f1f2f4; padding: 2px 6px; border-radius: 4px;
+      font-size: 13px; color: var(--ink);
+    }
+    .footer {
+      margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line);
+      font-size: 13px; color: var(--muted);
+    }
+    .footer a { color: var(--brand); text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>隐私政策</h1>
+      <p class="updated">最后更新：2026 年 7 月 9 日</p>
+
+      <h2>概述</h2>
+      <p>
+        <strong>双语 AI 翻译</strong>（以下简称"本扩展"）是一款运行在浏览器中的翻译工具。
+        我们非常重视您的隐私。本隐私政策旨在透明地说明本扩展如何处理您的数据。
+      </p>
+      <p><strong>核心原则：本扩展不收集任何个人数据。</strong></p>
+
+      <h2>数据处理说明</h2>
+
+      <h3>1. API Key（密钥）</h3>
+      <p>
+        您在使用本扩展时需要自行配置 AI 模型的 API Key。该 Key 仅通过 Chrome 的
+        <code>chrome.storage.sync</code> API <strong>存储在您的本地浏览器中</strong>，
+        不会传输到任何第三方服务器（除了您指定的 AI 接口地址本身）。
+      </p>
+
+      <h3>2. 翻译请求</h3>
+      <p>
+        当您浏览网页时，本扩展会将页面中的文本发送到<strong>您自己配置</strong>的 AI 模型接口地址
+       （如 DeepSeek、Qwen、GLM 等）进行翻译。这些请求：
+      </p>
+      <ul>
+        <li>直接发送到您指定的 API 地址，不经任何中间服务器中转</li>
+        <li>仅包含当前页面需要翻译的文本片段</li>
+        <li>不包含您的任何个人信息（如浏览器历史、Cookie 等）</li>
+      </ul>
+
+      <h3>3. 翻译缓存</h3>
+      <p>
+        为节省 API 调用次数，翻译结果会缓存在 Chrome 的
+        <code>chrome.storage.local</code> 中，<strong>仅保存在您的本地设备上</strong>。
+        您可以随时通过扩展弹窗的"清除所有缓存"按钮删除这些缓存。
+      </p>
+
+      <h3>4. 设置数据</h3>
+      <p>
+        您的扩展设置（模型选择、语言偏好、显示模式等）通过 Chrome 的同步存储
+        （<code>chrome.storage.sync</code>）保存，<strong>仅存储在您的浏览器中</strong>。
+        如果您登录了 Google 账号，这些设置可能会通过 Chrome 同步功能在多台设备之间同步。
+      </p>
+
+      <h2>数据收集声明</h2>
+      <p>
+        <strong>本扩展绝不收集、上传、分享或出售任何用户数据。</strong>
+        所有配置信息、API Key 和翻译缓存均存储在用户本地，不会传输到我们或任何第三方的服务器。
+      </p>
+
+      <h2>第三方服务</h2>
+      <p>
+        本扩展本身不依赖任何第三方分析服务或外部 API（除用户自行配置的 AI 模型接口外）。
+        您选择的 AI 模型提供商（如 DeepSeek、阿里云、智谱等）可能有其独立的隐私政策，
+        建议您在使用前查阅相关服务条款。
+      </p>
+
+      <h2>权限说明</h2>
+      <ul>
+        <li>
+          <strong><code>storage</code></strong>：用于保存您的设置和翻译缓存，所有数据均在本地。
+        </li>
+        <li>
+          <strong><code>unlimitedStorage</code></strong>：翻译缓存可能需要较大存储空间，避免达到默认存储上限。
+        </li>
+        <li>
+          <strong><code>&lt;all_urls&gt;</code></strong>：用于在您访问的网页上执行翻译功能，
+          仅在页面中查找文本并添加翻译结果，不会读取或修改您的个人信息。
+        </li>
+      </ul>
+
+      <h2>联系方式</h2>
+      <p>
+        如果您对本隐私政策有任何疑问，请通过以下邮箱联系我们：<br />
+        <strong>mrleocc88@gmail.com</strong>
+      </p>
+
+      <div class="footer">
+        <p>© mrleocc 所有 · <a href="mailto:mrleocc88@gmail.com">mrleocc88@gmail.com</a></p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

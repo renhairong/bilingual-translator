@@ -1,0 +1,36 @@
+/* 基础译文样式：所有翻译都有的文字样式（无背景） */
+.ai-translation-zh {
+  display: block;
+  margin-top: 2px;
+  color: #6b7280;
+  font-size: 0.92em;
+  line-height: 1.6;
+  font-weight: 400;
+}
+
+/* 正文段落（<p>）内的译文：保留背景块样式 */
+.ai-translation-zh-body {
+  padding: 2px 6px;
+  background: rgba(99, 102, 241, 0.06);
+  border-left: 3px solid rgba(99, 102, 241, 0.4);
+  border-radius: 4px;
+}
+
+/* 原文包裹 span */
+.ai-original-text {
+  display: inline;
+}
+
+/* 仅显示中文模式：隐藏所有原文 */
+body.ai-translation-zh-only .ai-original-text {
+  display: none !important;
+}
+
+/* 仅显示中文模式：译文只保留纯文字，去掉背景块样式 */
+body.ai-translation-zh-only .ai-translation-zh-body {
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+}
