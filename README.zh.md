@@ -24,9 +24,7 @@
 
 | 弹窗 | 设置页 |
 |------|--------|
-| ![弹窗](https://via.placeholder.com/280x400?text=Popup) | ![设置](https://via.placeholder.com/540x600?text=Settings) |
-
-*(请替换为实际截图)*
+| ![弹窗](screenshots/popup.png) | ![设置页](screenshots/options.png) |
 
 ---
 
