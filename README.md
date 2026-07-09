@@ -4,6 +4,10 @@ A Chrome/Edge extension that automatically translates web pages into Chinese usi
 
 ---
 
+> **[中文版功能说明](README.zh.md)**
+
+---
+
 ## Features
 
 - **Auto-translate** — Automatically translates supported web pages on load
