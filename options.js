@@ -241,3 +241,9 @@ $('model').addEventListener('input', () => {
     });
   } catch (e) { console.warn(e.message); }
 })();
+
+// 隐私政策链接
+$('privacyLink').addEventListener('click', (e) => {
+  e.preventDefault();
+  window.open('https://26c1a7c0d0164f32a6b689a30a8274f0.app.codebuddy.work/privacy.html', '_blank');
+});
