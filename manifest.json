@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "双语 AI 翻译",
   "version": "0.2.0",
-  "description": "双语 AI 翻译 - 自动翻译网页为中文，保留双语对照，支持 DeepSeek / Qwen / GLM 等 OpenAI 兼容模型。Bilingual AI translation with dual-language display, powered by any OpenAI-compatible API.",
+  "description": "AI bilingual webpage translator supporting DeepSeek/Qwen/GLM models. 双语网页翻译插件。",
   "icons": {
     "16": "icon-16.png",
     "48": "icon-48.png",
