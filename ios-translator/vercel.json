@@ -6,6 +6,7 @@
   "routes": [
     { "src": "/api/translate", "dest": "/api/translate.js" },
     { "src": "/", "dest": "/index.html" },
+    { "src": "/index.html", "dest": "/index.html" },
     { "src": "/bookmarklet.js", "dest": "/bookmarklet.js" }
   ]
 }
