@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>双语翻译 - iOS 快捷翻译</title>
+  <style>
+    :root { --bg: #f5f6f8; --card: #fff; --ink: #16171c; --ink-2: #565d6a; --muted: #9aa0ab; --line: #ebedf0; --brand: #4f46e5; --radius: 16px; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif; -webkit-font-smoothing: antialiased; padding: 48px 20px 64px; display: flex; justify-content: center; }
+    .wrap { width: 100%; max-width: 640px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 32px 28px; margin-bottom: 16px; box-shadow: 0 1px 2px rgba(16,24,40,0.04), 0 10px 30px rgba(16,24,40,0.05); }
+    h1 { font-size: 22px; margin: 0 0 6px; }
+    .sub { font-size: 14px; color: var(--muted); margin: 0 0 24px; }
+    h2 { font-size: 16px; margin: 24px 0 12px; }
+    p, li { font-size: 14px; line-height: 1.7; color: var(--ink-2); }
+    ol, ul { padding-left: 20px; }
+    li { margin-bottom: 6px; }
+    code { background: #f1f2f4; padding: 2px 8px; border-radius: 6px; font-size: 13px; color: var(--ink); word-break: break-all; }
+    .bookmarklet-btn {
+      display: inline-block; padding: 14px 28px;
+      background: var(--brand); color: #fff; border-radius: 12px;
+      font-size: 16px; font-weight: 600; text-decoration: none;
+      box-shadow: 0 6px 16px rgba(79,70,229,0.28);
+      cursor: pointer; border: none; font-family: inherit;
+    }
+    .bookmarklet-btn:hover { background: #4338ca; }
+    .tip { background: #eef0fe; border-radius: 10px; padding: 14px 16px; margin: 16px 0; font-size: 13px; color: var(--ink-2); line-height: 1.6; }
+    .tip strong { color: var(--brand); }
+    hr { border: none; border-top: 1px solid var(--line); margin: 24px 0; }
+    .footer { text-align: center; font-size: 12px; color: var(--muted); margin-top: 24px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>🌐 双语翻译 · iOS 版</h1>
+    <p class="sub">在 iPhone 的 Safari 浏览器中一键翻译网页</p>
+
+    <h2>📌 安装步骤</h2>
+    <ol>
+      <li><strong>将此页添加到 Safari 阅读列表或书签</strong>，方便日后访问</li>
+      <li>复制下面的书签代码</li>
+      <li>在 Safari 中创建一个新书签（随便填个名称）</li>
+      <li>编辑该书签，将 URL 替换为复制的代码</li>
+      <li>打开任意外文网页，点击这个书签即可翻译</li>
+    </ol>
+
+    <h2>📋 书签代码</h2>
+    <p>长按或右键复制下面整段代码：</p>
+    <code id="bookmarkletCode" style="display:block;background:#1e1e2e;color:#cdd6f4;padding:16px;border-radius:12px;font-size:12px;line-height:1.6;margin:12px 0;white-space:pre-wrap;word-break:break-all;max-height:200px;overflow:auto;">javascript:void(function(){var s=document.createElement('script');s.src='https://'+location.host+'/bookmarklet.js?'+Date.now();document.body.appendChild(s)})();</code>
+    <button class="bookmarklet-btn" onclick="copyBookmarklet()">复制书签代码</button>
+    <div id="copyMsg" style="margin-top:8px;font-size:13px;color:var(--brand);opacity:0;transition:opacity 0.2s;">已复制 ✓</div>
+
+    <div class="tip">
+      <strong>💡 提示：第一次使用时，会弹出配置窗口。</strong>
+      填入你的 API Base URL、API Key 和 Model 名称即可<br>
+      （与电脑端 Chrome 扩展的设置相同）
+    </div>
+
+    <h2>⚙️ 配置说明</h2>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <tr><th style="text-align:left;padding:8px 4px;border-bottom:1px solid var(--line);">字段</th><th style="text-align:left;padding:8px 4px;border-bottom:1px solid var(--line);">说明</th></tr>
+      <tr><td style="padding:8px 4px;border-bottom:1px solid var(--line);"><code>API Base URL</code></td><td style="padding:8px 4px;border-bottom:1px solid var(--line);">你的 AI 接口地址，如 <code>https://api.deepseek.com/v1</code></td></tr>
+      <tr><td style="padding:8px 4px;border-bottom:1px solid var(--line);"><code>API Key</code></td><td style="padding:8px 4px;border-bottom:1px solid var(--line);">你的 API 密钥</td></tr>
+      <tr><td style="padding:8px 4px;border-bottom:1px solid var(--line);"><code>Model</code></td><td style="padding:8px 4px;border-bottom:1px solid var(--line);">模型名称，如 <code>deepseek-chat</code></td></tr>
+    </table>
+    <p style="font-size:12px;color:var(--muted);margin-top:8px;">配置信息仅保存在当前网站的 localStorage 中，不会上传。</p>
+
+    <h2>⚠️ 隐私说明</h2>
+    <ul>
+      <li>API Key 存储在<strong>当前浏览网页的 localStorage</strong> 中，每次翻译时发送到你的 AI 接口</li>
+      <li>本页面部署在 Vercel 上，仅作为请求中转，不存储任何用户数据</li>
+      <li>页面文本通过云函数转发到你自己配置的 AI 接口</li>
+    </ul>
+  </div>
+
+  <div class="footer">
+    <p>© mrleocc · <a href="mailto:mrleocc88@gmail.com" style="color:var(--brand);text-decoration:none;">mrleocc88@gmail.com</a></p>
+  </div>
+</div>
+
+<script>
+function copyBookmarklet() {
+  const code = document.getElementById('bookmarkletCode');
+  const textArea = document.createElement('textarea');
+  textArea.value = code.textContent.trim();
+  document.body.appendChild(textArea);
+  textArea.select();
+  try { document.execCommand('copy'); } catch {}
+  document.body.removeChild(textArea);
+
+  const msg = document.getElementById('copyMsg');
+  msg.style.opacity = '1';
+  setTimeout(() => msg.style.opacity = '0', 2000);
+}
+</script>
+</body>
+</html>

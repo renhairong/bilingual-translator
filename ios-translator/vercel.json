@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "builds": [
+    { "src": "api/*.js", "use": "@vercel/node" }
+  ],
+  "routes": [
+    { "src": "/api/translate", "dest": "/api/translate.js" },
+    { "src": "/", "dest": "/index.html" },
+    { "src": "/bookmarklet.js", "dest": "/bookmarklet.js" }
+  ]
+}
