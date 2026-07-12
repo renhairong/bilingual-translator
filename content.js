@@ -3,7 +3,7 @@
 
 const IGNORE_TAGS = new Set([
   'SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT',
-  'CODE', 'PRE', 'SVG', 'PATH', 'SYMBOL', 'TEMPLATE', 'BUTTON'
+  'CODE', 'PRE', 'SVG', 'PATH', 'SYMBOL', 'TEMPLATE'
 ]);
 const TRANSLATED_SPAN_CLASS = 'ai-translation-zh';
 const ORIGINAL_SPAN_CLASS = 'ai-original-text';
