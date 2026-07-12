@@ -370,6 +370,60 @@ async function doTranslate() {
   }
 }
 
+// ── 滚动静默翻译：只翻视口内的可见内容 ──
+
+// 检查文本节点是否在视口内
+function isTextNodeVisible(textNode) {
+  const el = textNode.parentElement;
+  if (!el) return false;
+  const rect = el.getBoundingClientRect();
+  const vh = window.innerHeight || document.documentElement.clientHeight;
+  // 视口上下各放宽 300px，提前翻译即将进入的内容
+  return rect.top < vh + 300 && rect.bottom > -300;
+}
+
+// 收集当前视口内未翻译的节点
+function collectVisibleTextNodes() {
+  return collectTextNodes(document.body).filter(isTextNodeVisible);
+}
+
+// 翻译视口内可见内容（增量，不阻塞其他操作）
+let translatingVisible = false;
+async function translateVisible() {
+  if (translatingVisible || isTranslating || showingOriginal || contextInvalidated || !autoTranslate) return;
+  translatingVisible = true;
+
+  try {
+    const nodes = collectVisibleTextNodes();
+    if (!nodes.length) return;
+
+    for (let i = 0; i < nodes.length; i += BATCH) {
+      if (contextInvalidated || !autoTranslate) break;
+      const batchNodes = nodes.slice(i, i + BATCH);
+      const texts = batchNodes.map((n) => n.nodeValue.trim());
+      const translations = await translateBatch(texts);
+      if (contextInvalidated) break;
+      batchNodes.forEach((node, j) => {
+        const zh = translations[j];
+        if (zh && zh.trim() && !alreadyHasTranslation(node)) {
+          insertTranslation(node, zh.trim());
+        }
+      });
+    }
+    applyZhOnlyMode();
+  } finally {
+    translatingVisible = false;
+  }
+}
+
+// 滚动触发：防抖 500ms
+let scrollTimer = null;
+window.addEventListener('scroll', () => {
+  if (!autoTranslate || showingOriginal || contextInvalidated || translatingVisible || isTranslating) return;
+  clearTimeout(scrollTimer);
+  scrollTimer = setTimeout(translateVisible, 500);
+});
+
 // 移除所有翻译 span，恢复页面原始状态
 function removeTranslations() {
   translated = new WeakSet(); // 重建 WeakSet 清空所有标记
@@ -392,78 +446,18 @@ function loadConfigAndTranslate() {
     sourceLang = c.sourceLang || 'auto';
     targetLang = c.targetLang || 'zh-CN';
     applyZhOnlyMode();
-    if (autoTranslate) doTranslate();
+    // 初始翻译只翻可见区域
+    if (autoTranslate) translateVisible();
   });
 }
 
-// Observer：处理 SPA 动态加载内容
-// 优化：改成分批循环处理 + 固定延时防抖，不受连续 DOM 突变影响
+// Observer：只翻译新增的可见内容（SPA 滚动加载触发）
 let observerTimer = null;
-let observerBusy = false;
 const observer = new MutationObserver(() => {
-  if (!autoTranslate || isTranslating || showingOriginal || contextInvalidated) return;
-  if (observerBusy) return; // 正在处理中，忽略新的触发
+  if (!autoTranslate || isTranslating || showingOriginal || contextInvalidated || translatingVisible) return;
   clearTimeout(observerTimer);
-  observerTimer = setTimeout(runObserverPass, 1200);
+  observerTimer = setTimeout(translateVisible, 1200);
 });
-
-// Observer 单次扫描：收集所有未翻译节点，分批处理完再返回
-// 关键修复：把 4 轮 BATCH 上限放大，单次尽可能多翻完
-async function runObserverPass() {
-  if (observerBusy || isTranslating || contextInvalidated || !autoTranslate) return;
-  observerBusy = true;
-
-  try {
-    // 收集当前所有未翻译节点
-    const allNodes = collectTextNodes(document.body);
-    if (!allNodes.length) return;
-
-    // 分批处理，单次最多 8 批（120 节点），避免长时间占用
-    const MAX_BATCHES_PER_PASS = 8;
-    const maxNodes = BATCH * MAX_BATCHES_PER_PASS;
-    const nodesToProcess = allNodes.slice(0, maxNodes);
-
-    for (let i = 0; i < nodesToProcess.length; i += BATCH) {
-      if (isTranslating || contextInvalidated || !autoTranslate) break;
-
-      const batchNodes = nodesToProcess.slice(i, i + BATCH);
-      const texts = batchNodes.map((n) => n.nodeValue.trim());
-      const translations = await translateBatch(texts);
-
-      if (isTranslating || contextInvalidated || !autoTranslate) break;
-
-      batchNodes.forEach((node, j) => {
-        const zh = translations[j];
-        if (zh && zh.trim() && !alreadyHasTranslation(node)) {
-          insertTranslation(node, zh.trim());
-        }
-      });
-    }
-  } finally {
-    observerBusy = false;
-  }
-}
-
-// SPA 兜底：页面加载后多轮扫描，确保动态渲染的内容被覆盖
-// 优化：减少到 2 轮（10s、25s），避免重复消耗 token
-let catchupCount = 0;
-const CATCHUP_INTERVALS = [10000, 25000];
-
-function scheduleCatchup() {
-  if (catchupCount >= CATCHUP_INTERVALS.length) return;
-  const delay = CATCHUP_INTERVALS[catchupCount++];
-  setTimeout(() => {
-    if (!autoTranslate || isTranslating || showingOriginal || contextInvalidated) return;
-    if (!observerBusy) runObserverPass();
-  }, delay);
-}
-
-// 加载完成后启动兜底扫描
-if (document.readyState === 'complete') {
-  scheduleCatchup();
-} else {
-  window.addEventListener('load', scheduleCatchup);
-}
 
 safeStorageOnChanged((changes, area) => {
   if (area !== 'sync' || !isExtensionContextValid()) return;
