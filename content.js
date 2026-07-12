@@ -122,15 +122,18 @@ function isPureNumbers(text) {
 
 // source=指定语言时，是否属于该语言
 function matchesSourceLang(text, lang) {
+  const trimmed = text.trim();
   if (lang === 'auto') {
     // 自动检测模式：
     // 1. 纯数字/价格/日期不翻
-    if (isPureNumbers(text)) return false;
-    // 2. 已经是目标语言的文本不翻（含目标语言字符即跳过）
-    if (isTargetLang(text)) return false;
+    if (isPureNumbers(trimmed)) return false;
+    // 2. 已经是目标语言的文本不翻
+    if (isTargetLang(trimmed)) return false;
     // 3. 没有任何可识别语言字符的纯符号/空白不翻
-    const s = charScript(text);
-    if (s.latin + s.cjk + s.hiragana + s.katakana + s.hangul < 2) return false;
+    //    至少 1 个拉丁字母或 1 个 CJK/假名/谚文字符即可（原来是 2 个，会漏掉单词如 "Boring"）
+    const s = charScript(trimmed);
+    const hasOneChar = s.latin + s.cjk + s.hiragana + s.katakana + s.hangul >= 1;
+    if (!hasOneChar) return false;
     return true;
   }
   // 指定源语言模式
@@ -405,6 +408,7 @@ const observer = new MutationObserver(() => {
 });
 
 // Observer 单次扫描：收集所有未翻译节点，分批处理完再返回
+// 关键修复：把 4 轮 BATCH 上限放大，单次尽可能多翻完
 async function runObserverPass() {
   if (observerBusy || isTranslating || contextInvalidated || !autoTranslate) return;
   observerBusy = true;
@@ -414,11 +418,15 @@ async function runObserverPass() {
     const allNodes = collectTextNodes(document.body);
     if (!allNodes.length) return;
 
-    // 分批处理，批次间不等待 DOM 突变
-    for (let i = 0; i < allNodes.length; i += BATCH) {
+    // 分批处理，单次最多 8 批（120 节点），避免长时间占用
+    const MAX_BATCHES_PER_PASS = 8;
+    const maxNodes = BATCH * MAX_BATCHES_PER_PASS;
+    const nodesToProcess = allNodes.slice(0, maxNodes);
+
+    for (let i = 0; i < nodesToProcess.length; i += BATCH) {
       if (isTranslating || contextInvalidated || !autoTranslate) break;
 
-      const batchNodes = allNodes.slice(i, i + BATCH);
+      const batchNodes = nodesToProcess.slice(i, i + BATCH);
       const texts = batchNodes.map((n) => n.nodeValue.trim());
       const translations = await translateBatch(texts);
 
@@ -437,16 +445,16 @@ async function runObserverPass() {
 }
 
 // SPA 兜底：页面加载后多轮扫描，确保动态渲染的内容被覆盖
+// 优化：减少到 2 轮（10s、25s），避免重复消耗 token
 let catchupCount = 0;
-const CATCHUP_INTERVALS = [2000, 5000, 10000, 20000]; // 2s, 5s, 10s, 20s 后各扫一次
+const CATCHUP_INTERVALS = [10000, 25000];
 
 function scheduleCatchup() {
   if (catchupCount >= CATCHUP_INTERVALS.length) return;
   const delay = CATCHUP_INTERVALS[catchupCount++];
   setTimeout(() => {
     if (!autoTranslate || isTranslating || showingOriginal || contextInvalidated) return;
-    // 直接调用 doTranslate，走完整 collect→batch 流程
-    if (!observerBusy) doTranslate();
+    if (!observerBusy) runObserverPass();
   }, delay);
 }
 
