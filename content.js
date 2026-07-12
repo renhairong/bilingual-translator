@@ -393,25 +393,69 @@ function loadConfigAndTranslate() {
   });
 }
 
-// Observer：只处理增量新内容，同样受翻译锁保护
+// Observer：处理 SPA 动态加载内容
+// 优化：改成分批循环处理 + 固定延时防抖，不受连续 DOM 突变影响
 let observerTimer = null;
+let observerBusy = false;
 const observer = new MutationObserver(() => {
-  if (!autoTranslate || isTranslating || showingOriginal || contextInvalidated) return; // 锁 + 「显示原文」保护 + 上下文失效保护
+  if (!autoTranslate || isTranslating || showingOriginal || contextInvalidated) return;
+  if (observerBusy) return; // 正在处理中，忽略新的触发
   clearTimeout(observerTimer);
-  observerTimer = setTimeout(async () => {
-    if (isTranslating || contextInvalidated) return;
-    const nodes = collectTextNodes(document.body).slice(0, BATCH);
-    if (!nodes.length) return;
-    const texts = nodes.map((n) => n.nodeValue.trim());
-    const translations = await translateBatch(texts);
-    // 二次检查锁（异步间隙可能已变化）
-    if (isTranslating) return;
-    nodes.forEach((node, j) => {
-      const zh = translations[j];
-      if (zh && zh.trim() && !alreadyHasTranslation(node)) insertTranslation(node, zh.trim());
-    });
-  }, 1500); // 防抖从 1000ms 加到 1500ms，减少触发频率
+  observerTimer = setTimeout(runObserverPass, 1200);
 });
+
+// Observer 单次扫描：收集所有未翻译节点，分批处理完再返回
+async function runObserverPass() {
+  if (observerBusy || isTranslating || contextInvalidated || !autoTranslate) return;
+  observerBusy = true;
+
+  try {
+    // 收集当前所有未翻译节点
+    const allNodes = collectTextNodes(document.body);
+    if (!allNodes.length) return;
+
+    // 分批处理，批次间不等待 DOM 突变
+    for (let i = 0; i < allNodes.length; i += BATCH) {
+      if (isTranslating || contextInvalidated || !autoTranslate) break;
+
+      const batchNodes = allNodes.slice(i, i + BATCH);
+      const texts = batchNodes.map((n) => n.nodeValue.trim());
+      const translations = await translateBatch(texts);
+
+      if (isTranslating || contextInvalidated || !autoTranslate) break;
+
+      batchNodes.forEach((node, j) => {
+        const zh = translations[j];
+        if (zh && zh.trim() && !alreadyHasTranslation(node)) {
+          insertTranslation(node, zh.trim());
+        }
+      });
+    }
+  } finally {
+    observerBusy = false;
+  }
+}
+
+// SPA 兜底：页面加载后多轮扫描，确保动态渲染的内容被覆盖
+let catchupCount = 0;
+const CATCHUP_INTERVALS = [2000, 5000, 10000, 20000]; // 2s, 5s, 10s, 20s 后各扫一次
+
+function scheduleCatchup() {
+  if (catchupCount >= CATCHUP_INTERVALS.length) return;
+  const delay = CATCHUP_INTERVALS[catchupCount++];
+  setTimeout(() => {
+    if (!autoTranslate || isTranslating || showingOriginal || contextInvalidated) return;
+    // 直接调用 doTranslate，走完整 collect→batch 流程
+    if (!observerBusy) doTranslate();
+  }, delay);
+}
+
+// 加载完成后启动兜底扫描
+if (document.readyState === 'complete') {
+  scheduleCatchup();
+} else {
+  window.addEventListener('load', scheduleCatchup);
+}
 
 safeStorageOnChanged((changes, area) => {
   if (area !== 'sync' || !isExtensionContextValid()) return;
