@@ -8,7 +8,7 @@ const IGNORE_TAGS = new Set([
 const TRANSLATED_SPAN_CLASS = 'ai-translation-zh';
 const ORIGINAL_SPAN_CLASS = 'ai-original-text';
 const BODY_ZH_ONLY_CLASS = 'ai-translation-zh-only';
-const BATCH = 5;
+const BATCH = 10;
 
 let autoTranslate = true;
 let mode = 'bilingual';
