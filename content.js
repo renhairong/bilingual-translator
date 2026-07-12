@@ -13,7 +13,6 @@ const BATCH = 10;
 let autoTranslate = true;
 let mode = 'bilingual';
 let styleCfg = {};
-let styleMode = 'custom'; // 'inherit' 或 'custom'
 let translated = new WeakSet();
 let isTranslating = false;
 let showingOriginal = false;
@@ -22,6 +21,9 @@ let targetLang = 'zh-CN';
 let contextInvalidated = false; // 扩展重载后上下文失效，后续翻译静默停止
 let spaRetryCount = 0; // SPA 页面延迟重试计数
 const SPA_RETRY_DELAYS = [800, 1500, 3000]; // 重试间隔（ms）
+let followUpCount = 0; // 翻译后补充扫描计数
+const MAX_FOLLOWUPS = 3; // 最多补充扫描次数
+let lastUrl = location.href; // SPA URL 变化检测
 
 // 语言名称映射（用于提示词）
 const LANG_NAMES = {
@@ -347,7 +349,7 @@ function translateBatch(texts) {
   });
 }
 
-// 核心翻译函数：带锁 + 暂停 Observer 防循环 + SPA 延迟重试
+// 核心翻译函数：带锁 + 暂停 Observer 防循环 + SPA 延迟重试 + 翻译后补充扫描
 async function doTranslate() {
   if (isTranslating || showingOriginal || contextInvalidated) return;
   isTranslating = true;
@@ -363,6 +365,7 @@ async function doTranslate() {
         spaRetryCount++;
         console.log('[双语翻译] 未收集到节点，', delay + 'ms 后重试 (第', spaRetryCount, '次)');
         isTranslating = false;
+        if (!contextInvalidated) observer.observe(document.body, { childList: true, subtree: true });
         setTimeout(() => {
           if (autoTranslate && !showingOriginal && !contextInvalidated) doTranslate();
         }, delay);
@@ -389,6 +392,21 @@ async function doTranslate() {
       });
     }
     applyZhOnlyMode();
+    console.log('[双语翻译] 翻译完成: 成功', okCount, '失败', failCount);
+
+    // 翻译后补充扫描：翻译期间可能有新内容被加载到 DOM 中
+    // Observer 在翻译期间被断开，这些新内容不会被捕获，需要主动扫描
+    const remaining = collectTextNodes(document.body);
+    if (remaining.length > 0 && followUpCount < MAX_FOLLOWUPS) {
+      followUpCount++;
+      console.log('[双语翻译] 发现', remaining.length, '个新节点，补充扫描 (第', followUpCount, '次)');
+      isTranslating = false;
+      if (!contextInvalidated) observer.observe(document.body, { childList: true, subtree: true });
+      clearTimeout(observerTimer);
+      observerTimer = setTimeout(doTranslate, 500);
+      return;
+    }
+    followUpCount = 0; // 重置补充扫描计数
   } finally {
     isTranslating = false;
     if (!contextInvalidated) observer.observe(document.body, { childList: true, subtree: true });
@@ -469,6 +487,8 @@ safeRuntimeOnMessage((msg, sender, sendResponse) => {
   } else if (msg.type === 'rerun') {
     // 「重新翻译」：清除「显示原文」状态 + 清除所有翻译 + 重新翻译
     showingOriginal = false;
+    spaRetryCount = 0;
+    followUpCount = 0;
     removeTranslations();
     doTranslate();
     sendResponse({ ok: true });
@@ -478,6 +498,37 @@ safeRuntimeOnMessage((msg, sender, sendResponse) => {
     sendResponse({ ok: true });
   }
 });
+
+// —— SPA URL 变化检测 ——
+// Medium 等 SPA 网站通过 History API 切换页面时不会触发页面刷新，
+// content script 不会重新执行，需要主动检测 URL 变化并重新翻译。
+function onUrlChange() {
+  if (location.href === lastUrl) return;
+  lastUrl = location.href;
+  console.log('[双语翻译] SPA URL 变化:', location.href);
+  // 重置所有状态
+  spaRetryCount = 0;
+  followUpCount = 0;
+  isTranslating = false;
+  removeTranslations();
+  if (autoTranslate && !showingOriginal && !contextInvalidated) {
+    clearTimeout(observerTimer);
+    observerTimer = setTimeout(doTranslate, 500);
+  }
+}
+
+// Hook History API
+const _origPushState = history.pushState;
+const _origReplaceState = history.replaceState;
+history.pushState = function () {
+  _origPushState.apply(this, arguments);
+  setTimeout(onUrlChange, 100);
+};
+history.replaceState = function () {
+  _origReplaceState.apply(this, arguments);
+  setTimeout(onUrlChange, 100);
+};
+window.addEventListener('popstate', onUrlChange);
 
 loadConfigAndTranslate();
 observer.observe(document.body, { childList: true, subtree: true });
