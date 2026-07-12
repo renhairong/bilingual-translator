@@ -309,6 +309,23 @@ function isInsideParagraph(textNode) {
   return false;
 }
 
+// 提取元素上链上「第一个有效」的 background-color
+// 沿父级链向上查找：找到第一个真正有背景色的祖先（不是 transparent / rgba 0）
+// 用于让译文继承原网页自带的高亮背景（黄色、淡绿色等）
+function getEffectiveBackgroundColor(node) {
+  if (!node) return '';
+  let el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+  while (el && el !== document.documentElement) {
+    const bg = getComputedStyle(el).backgroundColor;
+    if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+      // 还要检查是否被 background-image 覆盖（不覆盖即可）
+      return bg;
+    }
+    el = el.parentElement;
+  }
+  return '';
+}
+
 function insertTranslation(textNode, zh) {
   translated.add(textNode);
   const parent = textNode.parentElement;
@@ -320,11 +337,19 @@ function insertTranslation(textNode, zh) {
   textNode.parentNode.insertBefore(orig, textNode);
   orig.appendChild(textNode);
 
+  // 提取原文所在上下文链上的背景色（高亮背景）
+  // 这样无论用户选「默认样式」还是「自定义样式」，译文都能继承原网页的高亮背景
+  const inheritBg = getEffectiveBackgroundColor(parent);
+
   // 插入译文 span
   const span = document.createElement('span');
   const classes = [TRANSLATED_SPAN_CLASS];
   classes.push(styleMode === 'custom' ? 'ai-style-custom' : 'ai-style-inherit');
   if (isInsideParagraph(textNode)) classes.push('ai-translation-zh-body');
+  if (inheritBg) {
+    classes.push('ai-style-with-inherit-bg');
+    span.style.backgroundColor = inheritBg;
+  }
   span.className = classes.join(' ');
   span.textContent = zh;
   applyStyle(span);

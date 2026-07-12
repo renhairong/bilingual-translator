@@ -28,6 +28,13 @@
   border-radius: 4px;
 }
 
+/* 原文带高亮背景时，译文优先用原文的高亮背景（行内样式覆盖） */
+/* 这里只确保 ai-translation-zh-body 的 padding/border 不影响高亮背景的视觉 */
+.ai-translation-zh.ai-style-with-inherit-bg.ai-translation-zh-body {
+  background: inherit; /* 让行内 style.backgroundColor 生效 */
+  border-left-color: transparent;
+}
+
 /* 兼容旧版：没有 ai-style-* 的译文保持原来的自定义样式（不破坏老用户） */
 .ai-translation-zh:not(.ai-style-inherit):not(.ai-style-custom) {
   color: #6b7280;
