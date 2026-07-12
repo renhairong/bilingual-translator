@@ -363,6 +363,7 @@ async function doTranslate() {
     }
     // [修复] 重新应用显示模式（重翻/开关后 body class 可能被 removeTranslations 清掉）
     applyZhOnlyMode();
+    batchOffset = 0; // 全量翻译后重置偏移量
   } finally {
     // 翻译完成，恢复 Observer 监听（上下文已失效则不再监听）
     isTranslating = false;
@@ -370,58 +371,55 @@ async function doTranslate() {
   }
 }
 
-// ── 滚动静默翻译：只翻视口内的可见内容 ──
+// ── 分步翻译：初始快速翻可见区 + 滚动渐进补全 ──
 
-// 检查文本节点是否在视口内
-function isTextNodeVisible(textNode) {
-  const el = textNode.parentElement;
-  if (!el) return false;
-  const rect = el.getBoundingClientRect();
-  const vh = window.innerHeight || document.documentElement.clientHeight;
-  // 视口上下各放宽 300px，提前翻译即将进入的内容
-  return rect.top < vh + 300 && rect.bottom > -300;
-}
+// 收集尚未翻译的所有文本节点（不限制可见性）
+// 但自动翻译模式下每次只翻一部分，避免一次性消耗过多 token
+let batchOffset = 0; // 全局偏移量，记录已处理到哪批
 
-// 收集当前视口内未翻译的节点
-function collectVisibleTextNodes() {
-  return collectTextNodes(document.body).filter(isTextNodeVisible);
-}
-
-// 翻译视口内可见内容（增量，不阻塞其他操作）
-let translatingVisible = false;
-async function translateVisible() {
-  if (translatingVisible || isTranslating || showingOriginal || contextInvalidated || !autoTranslate) return;
-  translatingVisible = true;
+// 翻译下一批节点：不限制可见性，逐步推进
+let stepTranslating = false;
+async function translateNextBatch() {
+  if (stepTranslating || isTranslating || showingOriginal || contextInvalidated || !autoTranslate) return;
+  stepTranslating = true;
 
   try {
-    const nodes = collectVisibleTextNodes();
-    if (!nodes.length) return;
+    const allNodes = collectTextNodes(document.body);
+    if (!allNodes.length) { batchOffset = 0; return; }
 
-    for (let i = 0; i < nodes.length; i += BATCH) {
-      if (contextInvalidated || !autoTranslate) break;
-      const batchNodes = nodes.slice(i, i + BATCH);
-      const texts = batchNodes.map((n) => n.nodeValue.trim());
-      const translations = await translateBatch(texts);
-      if (contextInvalidated) break;
-      batchNodes.forEach((node, j) => {
-        const zh = translations[j];
-        if (zh && zh.trim() && !alreadyHasTranslation(node)) {
-          insertTranslation(node, zh.trim());
-        }
-      });
-    }
+    // 从上次停止处继续
+    const remaining = allNodes.length - batchOffset;
+    if (remaining <= 0) { batchOffset = 0; return; }
+
+    // 每次最多处理 BATCH*3 = 45 节点，保体验控消耗
+    const take = Math.min(remaining, BATCH * 3);
+    const batchNodes = allNodes.slice(batchOffset, batchOffset + take);
+
+    const texts = batchNodes.map((n) => n.nodeValue.trim());
+    const translations = await translateBatch(texts);
+    if (contextInvalidated) return;
+
+    // 翻译成功后更新偏移量，失败时下次重试
+    batchOffset += take;
+
+    batchNodes.forEach((node, j) => {
+      const zh = translations[j];
+      if (zh && zh.trim() && !alreadyHasTranslation(node)) {
+        insertTranslation(node, zh.trim());
+      }
+    });
     applyZhOnlyMode();
   } finally {
-    translatingVisible = false;
+    stepTranslating = false;
   }
 }
 
-// 滚动触发：防抖 500ms
+// 滚动触发：翻下一批
 let scrollTimer = null;
 window.addEventListener('scroll', () => {
-  if (!autoTranslate || showingOriginal || contextInvalidated || translatingVisible || isTranslating) return;
+  if (!autoTranslate || showingOriginal || contextInvalidated || stepTranslating || isTranslating) return;
   clearTimeout(scrollTimer);
-  scrollTimer = setTimeout(translateVisible, 500);
+  scrollTimer = setTimeout(translateNextBatch, 400);
 });
 
 // 移除所有翻译 span，恢复页面原始状态
@@ -436,6 +434,7 @@ function removeTranslations() {
   });
   // 移除模式 class
   document.body.classList.remove(BODY_ZH_ONLY_CLASS);
+  batchOffset = 0;
 }
 
 function loadConfigAndTranslate() {
@@ -446,17 +445,16 @@ function loadConfigAndTranslate() {
     sourceLang = c.sourceLang || 'auto';
     targetLang = c.targetLang || 'zh-CN';
     applyZhOnlyMode();
-    // 初始翻译只翻可见区域
-    if (autoTranslate) translateVisible();
+    if (autoTranslate) translateNextBatch();
   });
 }
 
-// Observer：只翻译新增的可见内容（SPA 滚动加载触发）
+// Observer：新增 DOM 后触发下一批
 let observerTimer = null;
 const observer = new MutationObserver(() => {
-  if (!autoTranslate || isTranslating || showingOriginal || contextInvalidated || translatingVisible) return;
+  if (!autoTranslate || isTranslating || showingOriginal || contextInvalidated || stepTranslating) return;
   clearTimeout(observerTimer);
-  observerTimer = setTimeout(translateVisible, 1200);
+  observerTimer = setTimeout(translateNextBatch, 1000);
 });
 
 safeStorageOnChanged((changes, area) => {
