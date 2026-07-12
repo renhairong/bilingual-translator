@@ -17,19 +17,19 @@
   border-radius: 0;
 }
 
-/* 自定义样式模式：灰色文字、略小字号 */
+/* 自定义样式模式：灰色文字、略小字号，布局和默认样式一致（无背景块/边框） */
 .ai-translation-zh.ai-style-custom {
   color: #6b7280;
   font-size: 0.92em;
   font-weight: 400;
 }
 
-/* 自定义样式下正文段落内的译文：背景块样式 */
+/* 自定义样式的正文段落：和继承样式一样，无背景块/边框/padding */
 .ai-translation-zh.ai-style-custom.ai-translation-zh-body {
-  padding: 2px 6px;
-  background: rgba(99, 102, 241, 0.06);
-  border-left: 3px solid rgba(99, 102, 241, 0.4);
-  border-radius: 4px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  border-radius: 0;
 }
 
 /* 原文带高亮背景时，译文优先用原文的高亮背景（行内样式覆盖） */
@@ -39,7 +39,7 @@
   border-left-color: transparent;
 }
 
-/* 兼容旧版：没有 ai-style-* 的译文保持原来的自定义样式（不破坏老用户） */
+/* 兼容旧版：没有 ai-style-* 的译文保持基本布局（不破坏老用户） */
 .ai-translation-zh:not(.ai-style-inherit):not(.ai-style-custom) {
   color: #6b7280;
   font-size: 0.92em;
@@ -47,10 +47,10 @@
 }
 
 .ai-translation-zh:not(.ai-style-inherit):not(.ai-style-custom).ai-translation-zh-body {
-  padding: 2px 6px;
-  background: rgba(99, 102, 241, 0.06);
-  border-left: 3px solid rgba(99, 102, 241, 0.4);
-  border-radius: 4px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  border-radius: 0;
 }
 
 /* 原文包裹 span */
