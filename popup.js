@@ -127,7 +127,6 @@ $('targetLang').addEventListener('change', onLangChange);
 $('retranslate').addEventListener('click', () => {
   activeTab((tabId) => {
     if (tabId == null) return;
-    safeSendTabMessage(tabId, { type: 'remove' });
     safeSendTabMessage(tabId, { type: 'rerun' });
   });
 });

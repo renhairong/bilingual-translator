@@ -13,6 +13,7 @@ const BATCH = 10;
 let autoTranslate = true;
 let mode = 'bilingual';
 let styleCfg = {};
+let styleMode = 'custom'; // 'inherit' 或 'custom'
 let translated = new WeakSet();
 let isTranslating = false;
 let showingOriginal = false;
@@ -466,7 +467,8 @@ safeRuntimeOnMessage((msg, sender, sendResponse) => {
     removeTranslations();
     sendResponse({ ok: true });
   } else if (msg.type === 'rerun') {
-    showingOriginal = false; // 重新翻译，解除保护
+    // 「重新翻译」：清除「显示原文」状态 + 清除所有翻译 + 重新翻译
+    showingOriginal = false;
     removeTranslations();
     doTranslate();
     sendResponse({ ok: true });
