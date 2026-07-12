@@ -364,7 +364,8 @@ function insertTranslation(textNode, zh) {
   const span = document.createElement('span');
   const classes = [TRANSLATED_SPAN_CLASS];
   classes.push(styleMode === 'custom' ? 'ai-style-custom' : 'ai-style-inherit');
-  if (isInsideParagraph(textNode)) classes.push('ai-translation-zh-body');
+  const inParagraph = isInsideParagraph(textNode);
+  if (inParagraph) classes.push('ai-translation-zh-body');
   if (inheritBg) {
     classes.push('ai-style-with-inherit-bg');
     span.style.backgroundColor = inheritBg;
@@ -373,6 +374,22 @@ function insertTranslation(textNode, zh) {
   span.textContent = zh;
   applyStyle(span);
   parent.insertBefore(span, orig.nextSibling);
+
+  // 段落级对齐校正：插入后实测译文左边界 vs 原文左边界，
+  // 如果译文向右偏了超过 8px，说明父级有 text-indent/padding 让 block 级译文被推后
+  // 用负 margin-left 把译文拉回与原文左对齐
+  // 仅在正文段落（inParagraph）时启用，避免误伤导航等 UI 容器
+  if (inParagraph) {
+    try {
+      const origRect = orig.getBoundingClientRect();
+      const spanRect = span.getBoundingClientRect();
+      const offset = spanRect.left - origRect.left;
+      // 只在「明显偏移」（>=8px 且 <200px，防止误伤布局）时调整
+      if (offset >= 8 && offset < 200) {
+        span.style.marginLeft = (-offset) + 'px';
+      }
+    } catch (e) { /* 忽略测量错误 */ }
+  }
 }
 
 function translateBatch(texts) {
