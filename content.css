@@ -3,6 +3,10 @@
   display: block;
   margin-top: 2px;
   line-height: 1.6;
+  /* 防止被原网页的 text-indent 缩进影响（即使 JS 漏算，CSS 也兜底） */
+  text-indent: 0;
+  /* 防止 padding 偏移：译文是直接子节点，不应有 padding */
+  padding-left: 0;
 }
 
 /* 继承模式正文段落：不添加背景块、边框等装饰 */
