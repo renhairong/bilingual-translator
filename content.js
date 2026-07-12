@@ -403,7 +403,8 @@ function insertTranslation(textNode, zh) {
   // 如果译文向右偏了超过 8px，说明父级有 text-indent/padding 让 block 级译文被推后
   // 用负 margin-left 把译文拉回与原文左对齐
   // 仅在正文段落（inParagraph）时启用，避免误伤导航等 UI 容器
-  if (inParagraph) {
+  // 外移的译文（ai-translation-zh-after-clamp）不在 orig 旁边，跳过对齐
+  if (inParagraph && !span.classList.contains('ai-translation-zh-after-clamp')) {
     try {
       const origRect = orig.getBoundingClientRect();
       const spanRect = span.getBoundingClientRect();
