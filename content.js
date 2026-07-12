@@ -356,6 +356,7 @@ async function doTranslate() {
     if (!nodes.length) return;
 
     let okCount = 0, failCount = 0;
+    const failedTexts = [];
     for (let i = 0; i < nodes.length; i += BATCH) {
       const batchNodes = nodes.slice(i, i + BATCH);
       const texts = batchNodes.map((n) => n.nodeValue.trim());
@@ -367,13 +368,27 @@ async function doTranslate() {
           okCount++;
         } else {
           failCount++;
-          // 打印失败节点的信息，方便诊断
-          const preview = node.nodeValue.trim().substring(0, 50);
-          console.log('[双语翻译] 翻译失败:', preview);
+          failedTexts.push(node.nodeValue.trim().substring(0, 40));
         }
       });
     }
     console.log('[双语翻译] 完成: 成功', okCount, '失败', failCount);
+
+    // 页面上直接显示调试信息
+    const dbg = document.createElement('div');
+    dbg.style.cssText = 'position:fixed;top:10px;right:10px;background:#1a1a2e;color:#0f0;padding:12px 16px;border-radius:10px;font-size:13px;z-index:999999;box-shadow:0 4px 20px rgba(0,0,0,0.4);max-width:360px;max-height:300px;overflow:auto;font-family:monospace;line-height:1.6;';
+    let html = '<b style="color:#fff;font-size:14px;">双语翻译调试</b><br>';
+    html += '收集节点: ' + nodes.length + '<br>';
+    html += '翻译成功: <span style="color:#0f0">' + okCount + '</span><br>';
+    html += '翻译失败: <span style="color:#f55">' + failCount + '</span><br>';
+    if (failedTexts.length > 0) {
+      html += '<br><b style="color:#ff0">失败内容:</b><br>';
+      failedTexts.forEach(function(t) { html += '• ' + t + '<br>'; });
+    }
+    dbg.innerHTML = html;
+    document.body.appendChild(dbg);
+    setTimeout(function() { dbg.remove(); }, 15000);
+
     applyZhOnlyMode();
   } finally {
     isTranslating = false;
