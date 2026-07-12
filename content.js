@@ -326,46 +326,29 @@ function getEffectiveBackgroundColor(node) {
   return '';
 }
 
-// 计算需要抵消的左缩进（text-indent + padding-left）
-// 中文网站常常设置 text-indent: 2em 段落首行缩进，对 block 级译文生效
-// 而 inline 的原文 span 不受影响，导致译文和原文视觉不对齐
-// 这里把抵消量算出来，在译文上用负 margin-left 拉回左对齐位置
-function getLeftIndentOffset(node) {
-  if (!node) return 0;
+// 判断文本节点是否位于导航/菜单/侧边栏等 UI 容器中
+// 这类容器里的文字通常是 UI 标签（Home/Library 等），翻译会破坏布局
+function isInUINavContainer(node) {
+  if (!node) return false;
+  const navTags = new Set(['NAV', 'ASIDE', 'MENU', 'HEADER', 'FOOTER']);
   let el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
-  // 找到真正是 block 容器的那一层（段落/div）
-  const blockTags = new Set(['P', 'LI', 'BLOCKQUOTE', 'FIGCAPTION', 'DD', 'DT', 'DIV', 'ARTICLE', 'SECTION', 'MAIN']);
-  while (el && !blockTags.has(el.tagName) && el !== document.body) {
+  while (el && el !== document.body) {
+    if (navTags.has(el.tagName)) return true;
+    // role 属性也是导航/菜单
+    const role = el.getAttribute && el.getAttribute('role');
+    if (role && /^(navigation|menubar|menu|tablist|tab)$/i.test(role)) return true;
     el = el.parentElement;
   }
-  if (!el || el === document.body) return 0;
-  const cs = getComputedStyle(el);
-  // 1. text-indent 像素值（通常是 2em，作用在 block 子元素首行）
-  let textIndent = parseFloat(cs.textIndent) || 0;
-  if (textIndent > 0 && cs.textIndent.endsWith('em')) {
-    // em 是相对父级 font-size 的，乘以 fontSize
-    const fontSize = parseFloat(cs.fontSize) || 16;
-    textIndent = textIndent * fontSize;
-  } else if (textIndent > 0 && cs.textIndent.endsWith('px')) {
-    // 已经是像素
-  }
-  // 2. padding-left（如果父级有 padding-left 但这个 span 还在它内部）
-  // 实际上 block 元素的 padding 不会让 inline 文本偏移，但 textNode 直接父级如果是 span/a 才会继承 padding
-  // 我们只关心 textNode 直接父级链上的 padding
-  let paddingLeft = 0;
-  let probe = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
-  while (probe && probe !== el && probe !== document.body) {
-    const pl = parseFloat(getComputedStyle(probe).paddingLeft) || 0;
-    paddingLeft += pl;
-    probe = probe.parentElement;
-  }
-  return textIndent + paddingLeft;
+  return false;
 }
 
 function insertTranslation(textNode, zh) {
   translated.add(textNode);
   const parent = textNode.parentElement;
   if (!parent) return;
+
+  // 跳过导航/菜单/侧边栏等 UI 容器的翻译
+  if (isInUINavContainer(textNode)) return;
 
   // 用 <span class="ai-original-text"> 包裹原文
   const orig = document.createElement('span');
@@ -376,9 +359,6 @@ function insertTranslation(textNode, zh) {
   // 提取原文所在上下文链上的背景色（高亮背景）
   // 这样无论用户选「默认样式」还是「自定义样式」，译文都能继承原网页的高亮背景
   const inheritBg = getEffectiveBackgroundColor(parent);
-
-  // 计算需要抵消的左缩进（text-indent + 中间层 padding）
-  const leftOffset = getLeftIndentOffset(textNode);
 
   // 插入译文 span
   const span = document.createElement('span');
@@ -391,9 +371,6 @@ function insertTranslation(textNode, zh) {
   }
   span.className = classes.join(' ');
   span.textContent = zh;
-  if (leftOffset > 0) {
-    span.style.marginLeft = (-leftOffset) + 'px';
-  }
   applyStyle(span);
   parent.insertBefore(span, orig.nextSibling);
 }
