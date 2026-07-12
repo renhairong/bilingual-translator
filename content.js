@@ -19,6 +19,8 @@ let showingOriginal = false;
 let sourceLang = 'auto';
 let targetLang = 'zh-CN';
 let contextInvalidated = false; // 扩展重载后上下文失效，后续翻译静默停止
+let spaRetryCount = 0; // SPA 页面延迟重试计数
+const SPA_RETRY_DELAYS = [800, 1500, 3000]; // 重试间隔（ms）
 
 // 语言名称映射（用于提示词）
 const LANG_NAMES = {
@@ -344,7 +346,7 @@ function translateBatch(texts) {
   });
 }
 
-// 核心翻译函数：带锁 + 暂停 Observer 防循环
+// 核心翻译函数：带锁 + 暂停 Observer 防循环 + SPA 延迟重试
 async function doTranslate() {
   if (isTranslating || showingOriginal || contextInvalidated) return;
   isTranslating = true;
@@ -353,7 +355,22 @@ async function doTranslate() {
   try {
     const nodes = collectTextNodes(document.body);
     console.log('[双语翻译] 收集到', nodes.length, '个待翻译节点');
-    if (!nodes.length) return;
+    if (!nodes.length) {
+      // SPA 页面内容可能尚未加载完成，延迟重试
+      if (spaRetryCount < SPA_RETRY_DELAYS.length) {
+        const delay = SPA_RETRY_DELAYS[spaRetryCount];
+        spaRetryCount++;
+        console.log('[双语翻译] 未收集到节点，', delay + 'ms 后重试 (第', spaRetryCount, '次)');
+        isTranslating = false;
+        setTimeout(() => {
+          if (autoTranslate && !showingOriginal && !contextInvalidated) doTranslate();
+        }, delay);
+        return;
+      }
+      spaRetryCount = 0; // 重置计数
+      return;
+    }
+    spaRetryCount = 0; // 成功收集到节点，重置计数
 
     let okCount = 0, failCount = 0;
     for (let i = 0; i < nodes.length; i += BATCH) {
