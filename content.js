@@ -162,15 +162,18 @@ function collectTextNodes(root) {
       if (translated.has(node)) return NodeFilter.FILTER_REJECT;
       // [修复2] 根据语言设置过滤文本
       if (!matchesSourceLang(val, sourceLang)) return NodeFilter.FILTER_REJECT;
-      // [修复3] 跳过译文 span 内部的文本（防翻译的翻译）
-      let p = node.parentElement;
+      // [修复3] 跳过译文 span 内部的文本 + 忽略特定标签
+      // 注意：aria-hidden 只检查直接父级，不检查祖先（Medium 等网站祖先容器有 aria-hidden 但内容可见）
+      const directParent = node.parentElement;
+      if (directParent && directParent.classList && directParent.classList.contains(TRANSLATED_SPAN_CLASS)) {
+        return NodeFilter.FILTER_REJECT;
+      }
+      if (directParent && directParent.getAttribute && directParent.getAttribute('aria-hidden') === 'true') {
+        return NodeFilter.FILTER_REJECT;
+      }
+      let p = directParent;
       while (p) {
-        if (p.classList && p.classList.contains(TRANSLATED_SPAN_CLASS)) {
-          return NodeFilter.FILTER_REJECT;
-        }
-        if (IGNORE_TAGS.has(p.tagName) || p.getAttribute('aria-hidden') === 'true') {
-          return NodeFilter.FILTER_REJECT;
-        }
+        if (IGNORE_TAGS.has(p.tagName)) return NodeFilter.FILTER_REJECT;
         p = p.parentElement;
       }
       // [修复4] DOM 级去重：旁边已有译文则跳过（处理 TextNode 被 SPA/动态页重建的情况）
@@ -409,6 +412,12 @@ async function translateNextBatch() {
       }
     });
     applyZhOnlyMode();
+
+    // 如果还有未翻译节点，1 秒后自动继续（不等滚动）
+    const remainingNodes = collectTextNodes(document.body);
+    if (remainingNodes.length > 0 && !contextInvalidated && autoTranslate) {
+      setTimeout(translateNextBatch, 1000);
+    }
   } finally {
     stepTranslating = false;
   }
