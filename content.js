@@ -342,6 +342,20 @@ function isInUINavContainer(node) {
   return false;
 }
 
+// 查找最近的 -webkit-line-clamp 容器（如 Medium 卡片标题 h2）
+// 这类容器的 overflow:hidden 会裁切超出行数的 block 译文
+function findClampedContainer(node) {
+  if (!node) return null;
+  let el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+  while (el && el !== document.body) {
+    const cs = window.getComputedStyle(el);
+    const clampVal = cs.getPropertyValue('-webkit-line-clamp');
+    if (clampVal && clampVal !== 'none' && parseInt(clampVal) > 0) return el;
+    el = el.parentElement;
+  }
+  return null;
+}
+
 function insertTranslation(textNode, zh) {
   translated.add(textNode);
   const parent = textNode.parentElement;
@@ -374,6 +388,16 @@ function insertTranslation(textNode, zh) {
   span.textContent = zh;
   applyStyle(span);
   parent.insertBefore(span, orig.nextSibling);
+
+  // line-clamp 容器（如 Medium 卡片标题）：译文改插到 clampedEl 外面作为兄弟
+  // 避免被 overflow:hidden 裁掉，同时不破坏容器原有布局
+  const clampedEl = findClampedContainer(textNode);
+  if (clampedEl) {
+    span.remove();
+    clampedEl.parentNode.insertBefore(span, clampedEl.nextSibling);
+    span.classList.remove('ai-translation-zh-body');
+    span.classList.add('ai-translation-zh-after-clamp');
+  }
 
   // 段落级对齐校正：插入后实测译文左边界 vs 原文左边界，
   // 如果译文向右偏了超过 8px，说明父级有 text-indent/padding 让 block 级译文被推后
