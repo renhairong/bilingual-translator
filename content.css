@@ -1,18 +1,11 @@
-/* ========== 默认样式：继承原网页样式 ========== */
-.ai-translation-zh.ai-style-inherit {
+/* 基础译文样式（默认/继承模式）：只保留必要的布局样式，继承原网页文字样式 */
+.ai-translation-zh {
   display: block;
   margin-top: 2px;
-  color: inherit;
-  font-size: inherit;
-  line-height: inherit;
-  font-weight: inherit;
-  font-family: inherit;
-  text-decoration: inherit;
-  letter-spacing: inherit;
-  text-transform: inherit;
-  background: transparent;
+  line-height: 1.6;
 }
 
+/* 继承模式正文段落：不添加背景块、边框等装饰 */
 .ai-translation-zh.ai-style-inherit.ai-translation-zh-body {
   background: transparent;
   border: none;
@@ -20,15 +13,14 @@
   border-radius: 0;
 }
 
-/* ========== 自定义样式：用户自定义颜色+背景 ========== */
+/* 自定义样式模式：灰色文字、略小字号 */
 .ai-translation-zh.ai-style-custom {
-  display: block;
-  margin-top: 2px;
+  color: #6b7280;
   font-size: 0.92em;
-  line-height: 1.6;
   font-weight: 400;
 }
 
+/* 自定义样式下正文段落内的译文：背景块样式 */
 .ai-translation-zh.ai-style-custom.ai-translation-zh-body {
   padding: 2px 6px;
   background: rgba(99, 102, 241, 0.06);
@@ -36,13 +28,10 @@
   border-radius: 4px;
 }
 
-/* 兼容旧版 class（没有 ai-style-* 时走自定义样式） */
+/* 兼容旧版：没有 ai-style-* 的译文保持原来的自定义样式（不破坏老用户） */
 .ai-translation-zh:not(.ai-style-inherit):not(.ai-style-custom) {
-  display: block;
-  margin-top: 2px;
   color: #6b7280;
   font-size: 0.92em;
-  line-height: 1.6;
   font-weight: 400;
 }
 
@@ -52,8 +41,6 @@
   border-left: 3px solid rgba(99, 102, 241, 0.4);
   border-radius: 4px;
 }
-
-/* ========== 公共 ========== */
 
 /* 原文包裹 span */
 .ai-original-text {

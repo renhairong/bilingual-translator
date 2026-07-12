@@ -12,6 +12,7 @@ const BATCH = 10;
 
 let autoTranslate = true;
 let mode = 'bilingual';
+let styleMode = 'inherit'; // 译文样式：inherit=继承原网页样式，custom=自定义样式
 let styleCfg = {};
 let translated = new WeakSet();
 let isTranslating = false;
@@ -193,6 +194,7 @@ function collectTextNodes(root) {
 }
 
 function applyStyle(span) {
+  if (styleMode !== 'custom') return;
   if (styleCfg.color) span.style.color = styleCfg.color;
   if (styleCfg.size) span.style.fontSize = styleCfg.size;
 }
@@ -320,7 +322,10 @@ function insertTranslation(textNode, zh) {
 
   // 插入译文 span
   const span = document.createElement('span');
-  span.className = TRANSLATED_SPAN_CLASS + (isInsideParagraph(textNode) ? ' ai-translation-zh-body' : '');
+  const classes = [TRANSLATED_SPAN_CLASS];
+  classes.push(styleMode === 'custom' ? 'ai-style-custom' : 'ai-style-inherit');
+  if (isInsideParagraph(textNode)) classes.push('ai-translation-zh-body');
+  span.className = classes.join(' ');
   span.textContent = zh;
   applyStyle(span);
   parent.insertBefore(span, orig.nextSibling);
@@ -428,9 +433,11 @@ function removeTranslations() {
 }
 
 function loadConfigAndTranslate() {
-  safeStorageGet(['autoTranslate', 'mode', 'zhColor', 'zhSize', 'sourceLang', 'targetLang'], (c) => {
+  safeStorageGet(['autoTranslate', 'mode', 'styleMode', 'zhColor', 'zhSize', 'sourceLang', 'targetLang'], (c) => {
     autoTranslate = c.autoTranslate !== false;
     mode = c.mode || 'bilingual';
+    // 首次使用默认继承；老用户（只有 zhColor 没有 styleMode）保持自定义以兼容旧行为
+    styleMode = c.styleMode || (c.zhColor ? 'custom' : 'inherit');
     styleCfg = { color: c.zhColor, size: c.zhSize };
     sourceLang = c.sourceLang || 'auto';
     targetLang = c.targetLang || 'zh-CN';
@@ -462,9 +469,19 @@ safeStorageOnChanged((changes, area) => {
     applyZhOnlyMode(); // 实时切换原文显隐，无需重翻
   }
 
+  if (changes.styleMode) {
+    styleMode = changes.styleMode.newValue || 'inherit';
+    document.querySelectorAll('.' + TRANSLATED_SPAN_CLASS).forEach((span) => {
+      span.classList.remove('ai-style-inherit', 'ai-style-custom');
+      span.classList.add(styleMode === 'custom' ? 'ai-style-custom' : 'ai-style-inherit');
+      if (styleMode === 'custom') applyStyle(span);
+      else { span.style.color = ''; span.style.fontSize = ''; }
+    });
+  }
+
   if (changes.zhColor || changes.zhSize) {
     styleCfg = { color: changes.zhColor?.newValue || styleCfg.color, size: changes.zhSize?.newValue || styleCfg.size };
-    document.querySelectorAll('.' + TRANSLATED_SPAN_CLASS).forEach(applyStyle);
+    document.querySelectorAll('.' + TRANSLATED_SPAN_CLASS + '.ai-style-custom').forEach(applyStyle);
   }
 
   if (changes.sourceLang) sourceLang = changes.sourceLang.newValue || 'auto';

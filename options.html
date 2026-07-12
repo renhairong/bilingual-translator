@@ -154,6 +154,27 @@
       .switch input:checked + .slider { background: var(--brand); }
       .switch input:checked + .slider::before { transform: translateX(19px); }
 
+      /* 译文样式选项 */
+      .style-options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+      .radio-row {
+        display: flex; align-items: flex-start; gap: 10px;
+        padding: 12px; border: 1px solid var(--line); border-radius: 10px;
+        cursor: pointer; transition: all 0.18s;
+      }
+      .radio-row:hover { border-color: var(--brand); }
+      .radio-row:has(input:checked) {
+        border-color: var(--brand); background: var(--brand-soft);
+      }
+      .radio-row input { margin-top: 2px; accent-color: var(--brand); }
+      .radio-text { display: flex; flex-direction: column; gap: 2px; }
+      .radio-text b { font-size: 13px; font-weight: 550; color: var(--ink); }
+      .radio-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+      .custom-style-fields {
+        padding: 12px; background: #f8f9fb; border-radius: 10px;
+        border: 1px solid var(--line); display: none;
+      }
+      .custom-style-fields.show { display: block; }
+
       /* 颜色选择 */
       .color-field { display: flex; align-items: center; gap: 12px; }
       input[type="color"] {
@@ -330,11 +351,29 @@
         </div>
 
         <div class="field">
-          <label>译文颜色</label>
-          <div class="color-field">
-            <input id="zhColor" type="color" value="#6b7280" />
-            <span class="color-val" id="zhColorVal">#6b7280</span>
-            <button class="reset-color-btn" id="resetColor" type="button">恢复默认</button>
+          <label>译文样式</label>
+          <div class="style-options">
+            <label class="radio-row">
+              <input type="radio" name="styleMode" value="inherit" id="styleModeInherit" checked />
+              <span class="radio-text">
+                <b>默认样式</b>
+                <span class="radio-desc">继承原网页的文字颜色、大小、粗细、下划线及背景样式</span>
+              </span>
+            </label>
+            <label class="radio-row">
+              <input type="radio" name="styleMode" value="custom" id="styleModeCustom" />
+              <span class="radio-text">
+                <b>自定义样式</b>
+                <span class="radio-desc">使用自定义文字颜色及背景块样式</span>
+              </span>
+            </label>
+          </div>
+          <div class="custom-style-fields" id="customStyleFields">
+            <div class="color-field">
+              <input id="zhColor" type="color" value="#6b7280" />
+              <span class="color-val" id="zhColorVal">#6b7280</span>
+              <button class="reset-color-btn" id="resetColor" type="button">恢复默认</button>
+            </div>
           </div>
         </div>
       </div>

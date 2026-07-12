@@ -8,7 +8,7 @@ const PRESETS = {
 };
 
 const KEY_FIELDS = Object.values(PRESETS).map(p => p.keyField);
-const fields = ['baseUrl', 'apiKey', 'model', 'autoTranslate', 'mode', 'zhColor', 'sourceLang', 'targetLang', ...KEY_FIELDS];
+const fields = ['baseUrl', 'apiKey', 'model', 'autoTranslate', 'mode', 'styleMode', 'zhColor', 'sourceLang', 'targetLang', ...KEY_FIELDS];
 
 const DEFAULTS = {
   baseUrl: PRESETS.deepseek.baseUrl,
@@ -82,6 +82,7 @@ store.get(fields, (c) => {
       model,
       autoTranslate: true,
       mode: 'bilingual',
+      styleMode: 'inherit',
       zhColor: '#6b7280',
       [keyField]: migration ? migration[keyField] : DEFAULTS.apiKey
     };
@@ -93,6 +94,9 @@ store.get(fields, (c) => {
   // 迁移立即在 UI 生效（chrome.storage.set 是异步，c 对象里还没有新 key）
   if (!apiKey && migration && migration[keyField]) apiKey = migration[keyField];
 
+  // 样式模式：首次使用默认继承；老用户（只有 zhColor 没有 styleMode）保持自定义以兼容旧行为
+  const styleMode = c.styleMode || (c.zhColor ? 'custom' : 'inherit');
+
   $('baseUrl').value = baseUrl;
   $('apiKey').value = apiKey;
   $('model').value = model;
@@ -100,8 +104,10 @@ store.get(fields, (c) => {
   $('mode').value = c.mode || 'bilingual';
   $('sourceLang').value = c.sourceLang || 'auto';
   $('targetLang').value = c.targetLang || 'zh-CN';
+  $(styleMode === 'custom' ? 'styleModeCustom' : 'styleModeInherit').checked = true;
   $('zhColor').value = c.zhColor || DEFAULT_ZH_COLOR;
   $('zhColorVal').textContent = c.zhColor || DEFAULT_ZH_COLOR;
+  toggleCustomStyleFields();
   toggleResetColorBtn();
   syncPresetHighlight();
 });
@@ -137,6 +143,14 @@ function toggleResetColorBtn() {
   const current = $('zhColor').value;
   $('resetColor').classList.toggle('show', current !== DEFAULT_ZH_COLOR);
 }
+
+function toggleCustomStyleFields() {
+  const isCustom = $('styleModeCustom').checked;
+  $('customStyleFields').classList.toggle('show', isCustom);
+}
+
+$('styleModeInherit').addEventListener('change', toggleCustomStyleFields);
+$('styleModeCustom').addEventListener('change', toggleCustomStyleFields);
 
 $('zhColor').addEventListener('input', (e) => {
   $('zhColorVal').textContent = e.target.value;
@@ -208,6 +222,7 @@ $('save').addEventListener('click', () => {
     mode: $('mode').value,
     sourceLang: $('sourceLang').value,
     targetLang: $('targetLang').value,
+    styleMode: document.querySelector('input[name="styleMode"]:checked').value,
     zhColor: $('zhColor').value
   };
   store.set(data, () => {
