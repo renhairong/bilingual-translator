@@ -346,29 +346,36 @@ function translateBatch(texts) {
 
 // 核心翻译函数：带锁 + 暂停 Observer 防循环
 async function doTranslate() {
-  if (isTranslating || showingOriginal || contextInvalidated) return; // 翻译锁 + 「显示原文」保护 + 上下文失效保护
+  if (isTranslating || showingOriginal || contextInvalidated) return;
   isTranslating = true;
-
-  // [修复6] 翻译期间暂停 Observer，避免插入 span 又触发翻译
   observer.disconnect();
 
   try {
     const nodes = collectTextNodes(document.body);
+    console.log('[双语翻译] 收集到', nodes.length, '个待翻译节点');
     if (!nodes.length) return;
+
+    let okCount = 0, failCount = 0;
     for (let i = 0; i < nodes.length; i += BATCH) {
       const batchNodes = nodes.slice(i, i + BATCH);
       const texts = batchNodes.map((n) => n.nodeValue.trim());
       const translations = await translateBatch(texts);
       batchNodes.forEach((node, j) => {
         const zh = translations[j];
-        if (zh && zh.trim()) insertTranslation(node, zh.trim());
+        if (zh && zh.trim()) {
+          insertTranslation(node, zh.trim());
+          okCount++;
+        } else {
+          failCount++;
+          // 打印失败节点的信息，方便诊断
+          const preview = node.nodeValue.trim().substring(0, 50);
+          console.log('[双语翻译] 翻译失败:', preview);
+        }
       });
     }
-    // [修复] 重新应用显示模式（重翻/开关后 body class 可能被 removeTranslations 清掉）
+    console.log('[双语翻译] 完成: 成功', okCount, '失败', failCount);
     applyZhOnlyMode();
-    batchOffset = 0; // 全量翻译后重置偏移量
   } finally {
-    // 翻译完成，恢复 Observer 监听（上下文已失效则不再监听）
     isTranslating = false;
     if (!contextInvalidated) observer.observe(document.body, { childList: true, subtree: true });
   }
