@@ -399,9 +399,6 @@ function insertTranslation(textNode, zh) {
   const parent = textNode.parentElement;
   if (!parent) return;
 
-  // 跳过导航/菜单/侧边栏等 UI 容器的翻译
-  if (isInUINavContainer(textNode)) return;
-
   // 用 <span class="ai-original-text"> 包裹原文
   const orig = document.createElement('span');
   orig.className = ORIGINAL_SPAN_CLASS;
