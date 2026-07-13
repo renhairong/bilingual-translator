@@ -342,6 +342,44 @@ function isInUINavContainer(node) {
   return false;
 }
 
+// 判断文本节点是否位于真正需要 inline 译文的紧凑 UI 元素中
+// 只处理：按钮、链接、导航项（导航容器内的 <li> 或 <a>）
+// 不处理：普通列表项（<li> 但不在导航容器内）、普通 span 内的文本
+// 这样正文段落的 block 模式不受影响
+function isInlineContainer(node) {
+  if (!node) return false;
+  const el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+  if (!el) return false;
+  // 直接父级是 button → inline
+  if (el.tagName === 'BUTTON') return true;
+  // 直接父级是 a/b/strong/i/em 等纯内联元素 → inline
+  if (['A', 'B', 'STRONG', 'I', 'EM', 'U', 'MARK', 'LABEL', 'SMALL', 'TIME', 'SPAN', 'TH', 'TD'].includes(el.tagName)) {
+    // 但 span 内的正文段落 textNode（如 <p><span>正文</span></p>）是正文不是 inline UI
+    // 沿父链找一个 paragraph tag，找到了就是正文
+    let probe = el.parentElement;
+    while (probe && probe !== document.body) {
+      if (['P', 'LI', 'ARTICLE', 'SECTION', 'MAIN', 'BLOCKQUOTE'].includes(probe.tagName)) {
+        return false; // 正文段落的 span/a → block
+      }
+      probe = probe.parentElement;
+    }
+    return true; // 纯 UI 元素
+  }
+  // 直接父级是 li，且 li 在 nav/ul/header 容器内 → inline（导航项）
+  if (el.tagName === 'LI') {
+    let probe = el.parentElement;
+    while (probe && probe !== document.body) {
+      if (['NAV', 'UL', 'OL', 'HEADER', 'MENU'].includes(probe.tagName)) return true;
+      const role = probe.getAttribute && probe.getAttribute('role');
+      if (role && /^(navigation|menubar|menu|tablist|tab)$/i.test(role)) return true;
+      // 遇到 block 内容容器就停
+      if (['ARTICLE', 'MAIN', 'SECTION'].includes(probe.tagName)) return false;
+      probe = probe.parentElement;
+    }
+  }
+  return false;
+}
+
 // 查找最近的 -webkit-line-clamp 容器（如 Medium 卡片标题 h2）
 // 这类容器的 overflow:hidden 会裁切超出行数的 block 译文
 function findClampedContainer(node) {
@@ -379,13 +417,20 @@ function insertTranslation(textNode, zh) {
   const classes = [TRANSLATED_SPAN_CLASS];
   classes.push(styleMode === 'custom' ? 'ai-style-custom' : 'ai-style-inherit');
   const inParagraph = isInsideParagraph(textNode);
-  if (inParagraph) classes.push('ai-translation-zh-body');
+  // 内联/紧凑 UI 元素（按钮/链接/导航项）：译文用 inline 模式
+  // 正文段落：译文用 block 模式（垂直双语对照）
+  const inInline = isInlineContainer(textNode);
+  if (inParagraph && !inInline) classes.push('ai-translation-zh-body');
   if (inheritBg) {
     classes.push('ai-style-with-inherit-bg');
     span.style.backgroundColor = inheritBg;
   }
   span.className = classes.join(' ');
   span.textContent = zh;
+  if (inInline) {
+    span.style.display = 'inline';
+    span.style.marginLeft = '4px';
+  }
   applyStyle(span);
   parent.insertBefore(span, orig.nextSibling);
 
@@ -404,7 +449,7 @@ function insertTranslation(textNode, zh) {
   // 用负 margin-left 把译文拉回与原文左对齐
   // 仅在正文段落（inParagraph）时启用，避免误伤导航等 UI 容器
   // 外移的译文（ai-translation-zh-after-clamp）不在 orig 旁边，跳过对齐
-  if (inParagraph && !span.classList.contains('ai-translation-zh-after-clamp')) {
+  if (inParagraph && !span.classList.contains('ai-translation-zh-after-clamp') && !inInline) {
     try {
       const origRect = orig.getBoundingClientRect();
       const spanRect = span.getBoundingClientRect();
