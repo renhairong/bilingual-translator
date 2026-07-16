@@ -484,7 +484,7 @@ function translateBatch(texts) {
 
 // 核心翻译函数：带锁 + 暂停 Observer 防循环 + SPA 延迟重试 + 翻译后补充扫描
 async function doTranslate() {
-  if (isTranslating || showingOriginal || contextInvalidated) return;
+  if (!autoTranslate || isTranslating || showingOriginal || contextInvalidated) return;
   isTranslating = true;
   observer.disconnect();
 
