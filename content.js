@@ -129,6 +129,8 @@ function isPureNumbers(text) {
 // source=指定语言时，是否属于该语言
 function matchesSourceLang(text, lang) {
   const trimmed = text.trim();
+  // 源语言与目标语言相同：不翻译（避免"中文→中文""英文→英文"）
+  if (lang !== 'auto' && lang === targetLang) return false;
   if (lang === 'auto') {
     // 自动检测模式：
     // 1. 纯数字/价格/日期不翻
@@ -485,6 +487,8 @@ function translateBatch(texts) {
 // 核心翻译函数：带锁 + 暂停 Observer 防循环 + SPA 延迟重试 + 翻译后补充扫描
 async function doTranslate() {
   if (!autoTranslate || isTranslating || showingOriginal || contextInvalidated) return;
+  // 源语言与目标语言相同：无需翻译（如 zh-CN→zh-CN、en→en）
+  if (sourceLang !== 'auto' && sourceLang === targetLang) return;
   isTranslating = true;
   observer.disconnect();
 
