@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "双语 AI 翻译",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "AI bilingual webpage translator supporting DeepSeek/Qwen/GLM models. 双语网页翻译插件。",
   "icons": {
     "16": "icon-16.png",
