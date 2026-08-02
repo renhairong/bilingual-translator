@@ -698,49 +698,53 @@ function initSpaNavDetection() {
   let lastUrl = location.href;
   let navTimer = null;
   let contentTimer = null;
+  let pollTimer = null;
 
-  // 这个 observer 统一处理所有 DOM 变化（避免多个 observer 导致重复翻译）
-  // 全局 observer 变量也指向它，doTranslate 里 disconnect/observe 引用正常
+  // URL 变化处理：等 React 渲染完（1500ms）→ 重翻译 + 补充扫描
+  function handleUrlChange() {
+    lastUrl = location.href;
+    console.log('[双语翻译] SPA URL 变化:', location.href);
+    if (navTimer) clearTimeout(navTimer);
+    if (contentTimer) clearTimeout(contentTimer);
+    navTimer = setTimeout(() => {
+      navTimer = null;
+      translateGen++;          // 作废旧翻译
+      spaRetryCount = 0;
+      followUpCount = 0;
+      isTranslating = false;
+      removeTranslations();
+      if (autoTranslate && !showingOriginal && !contextInvalidated) {
+        doTranslate();
+      }
+      // 启动补充扫描：React 分批插入内容（Staff Picks 等），多次主动重扫
+      if (supplementTimer == null && autoTranslate && !showingOriginal && !contextInvalidated) {
+        const delays = [1500, 3000, 6000];
+        let i = 0;
+        const tick = () => {
+          if (contextInvalidated || !autoTranslate || showingOriginal || i >= delays.length) {
+            supplementTimer = null;
+            return;
+          }
+          const d = delays[i++];
+          supplementTimer = setTimeout(() => {
+            supplementTimer = null;
+            if (contextInvalidated || !autoTranslate || showingOriginal) return;
+            spaRetryCount = 0;
+            followUpCount = 0;
+            doTranslate();
+            tick();
+          }, d);
+        };
+        tick();
+      }
+    }, 1500);
+  }
+
+  // 方案1：MutationObserver 监听 DOM 变化时对比 URL
+  // 覆盖普通 SPA 导航（React 重新渲染 DOM）
   observer = new MutationObserver(() => {
     if (location.href !== lastUrl) {
-      // ===== 场景1：URL 变化（SPA 导航） =====
-      lastUrl = location.href;
-      console.log('[双语翻译] SPA URL 变化(Observer):', location.href);
-      if (navTimer) clearTimeout(navTimer);
-      if (contentTimer) clearTimeout(contentTimer);
-      // 等 React 渲染完（1500ms）再重新翻译，防止收集到空 DOM
-      navTimer = setTimeout(() => {
-        navTimer = null;
-        translateGen++;          // 作废旧翻译
-        spaRetryCount = 0;
-        followUpCount = 0;
-        isTranslating = false;
-        removeTranslations();
-        if (autoTranslate && !showingOriginal && !contextInvalidated) {
-          doTranslate();
-        }
-        // 启动补充扫描：React 分批插入内容（Staff Picks 等），多次主动重扫
-        if (supplementTimer == null && autoTranslate && !showingOriginal && !contextInvalidated) {
-          const delays = [1500, 3000, 6000];
-          let i = 0;
-          const tick = () => {
-            if (contextInvalidated || !autoTranslate || showingOriginal || i >= delays.length) {
-              supplementTimer = null;
-              return;
-            }
-            const d = delays[i++];
-            supplementTimer = setTimeout(() => {
-              supplementTimer = null;
-              if (contextInvalidated || !autoTranslate || showingOriginal) return;
-              spaRetryCount = 0;
-              followUpCount = 0;
-              doTranslate();
-              tick();
-            }, d);
-          };
-          tick();
-        }
-      }, 1500);
+      handleUrlChange();
     } else {
       // ===== 场景2：URL 没变但 DOM 变化（懒加载/无限滚动） =====
       if (!autoTranslate || isTranslating || showingOriginal || contextInvalidated) return;
@@ -749,7 +753,19 @@ function initSpaNavDetection() {
     }
   });
   observer.observe(document.body, { childList: true, subtree: true });
-  window.addEventListener('pagehide', () => observer.disconnect(), { once: true });
+
+  // 方案2：定时轮询 URL（兜底）
+  // Medium 的 ?source=... 链接返回首页时用 React 内存状态恢复，
+  // DOM 几乎不变 → MutationObserver 不触发，必须轮询兜底。
+  // 每秒读一次 location.href，开销极小。
+  pollTimer = setInterval(() => {
+    if (location.href !== lastUrl) handleUrlChange();
+  }, 1000);
+
+  window.addEventListener('pagehide', () => {
+    observer.disconnect();
+    clearInterval(pollTimer);
+  }, { once: true });
 }
 
 let supplementTimer = null; // 独立补充扫描定时器
