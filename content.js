@@ -126,6 +126,31 @@ function isPureNumbers(text) {
   return digits > 0 && letters === 0 && (digits + symbols) / t.length > 0.6;
 }
 
+// 页面级语言检测：采样 body 文本，判断整页主语言
+// 如果页面主语言 == 目标语言，整页跳过翻译（避免中文页被翻译）
+function detectPageLanguage() {
+  const s = charScript(document.body.innerText.slice(0, 3000));
+  const t = s.latin + s.cjk + s.hiragana + s.katakana + s.hangul;
+  if (t < 20) return 'und'; // 文本太少，无法判断
+  const ratios = [
+    { lang: 'zh', r: s.cjk / t },
+    { lang: 'ja', r: (s.hiragana + s.katakana) / t },
+    { lang: 'ko', r: s.hangul / t },
+    { lang: 'en', r: s.latin / t }
+  ].sort((a, b) => b.r - a.r);
+  return ratios[0].r > 0.5 ? ratios[0].lang : 'und';
+}
+
+// 页面主语言是否与目标语言一致（zh↔zh-CN、en↔en 等）
+function pageLangMatchesTarget(pageLang) {
+  const t = targetLang.toLowerCase().replace('-', '');
+  const p = pageLang.toLowerCase().replace('-', '');
+  if (t === p) return true;
+  // 中文简繁互认（zh-cn ↔ zh-tw 都算中文页面）
+  if (p === 'zh' && t.startsWith('zh')) return true;
+  return false;
+}
+
 // source=指定语言时，是否属于该语言
 function matchesSourceLang(text, lang) {
   const trimmed = text.trim();
@@ -137,11 +162,7 @@ function matchesSourceLang(text, lang) {
     if (isPureNumbers(trimmed)) return false;
     // 2. 已经是目标语言的文本不翻
     if (isTargetLang(trimmed)) return false;
-    // 3. 短纯拉丁文本（≤4 字符，无 CJK）通常是缩写/术语（PDF/URL/API/UI），
-    //    在中文页面里翻译成"便携文档格式"之类反而难懂，统一跳过
-    const _s0 = charScript(trimmed);
-    if (_s0.latin > 0 && _s0.cjk === 0 && _s0.total <= 4) return false;
-    // 4. 没有任何可识别语言字符的纯符号/空白不翻
+    // 3. 没有任何可识别语言字符的纯符号/空白不翻
     //    至少 1 个拉丁字母或 1 个 CJK/假名/谚文字符即可（原来是 2 个，会漏掉单词如 "Boring"）
     const s = charScript(trimmed);
     const hasOneChar = s.latin + s.cjk + s.hiragana + s.katakana + s.hangul >= 1;
@@ -493,6 +514,15 @@ async function doTranslate() {
   if (!autoTranslate || isTranslating || showingOriginal || contextInvalidated) return;
   // 源语言与目标语言相同：无需翻译（如 zh-CN→zh-CN、en→en）
   if (sourceLang !== 'auto' && sourceLang === targetLang) return;
+  // 页面级语言预判：整页主语言已是目标语言 → 跳过整页翻译
+  // （中文页面即使混着英文短文本，也不该翻译）
+  if (sourceLang === 'auto') {
+    const pageLang = detectPageLanguage();
+    if (pageLang !== 'und' && pageLangMatchesTarget(pageLang)) {
+      console.log('[双语翻译] 页面主语言已是目标语言(' + pageLang + ')，跳过翻译');
+      return;
+    }
+  }
   isTranslating = true;
   observer.disconnect();
 
