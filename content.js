@@ -21,6 +21,8 @@ let sourceLang = 'auto';
 let targetLang = 'zh-CN';
 let contextInvalidated = false; // 扩展重载后上下文失效，后续翻译静默停止
 let spaRetryCount = 0; // SPA 页面延迟重试计数
+let translateGen = 0; // 翻译代号：URL 变化时自增，旧翻译作废
+let activeGen = -1; // 当前正在进行的翻译代号
 const SPA_RETRY_DELAYS = [800, 1500, 3000]; // 重试间隔（ms）
 let followUpCount = 0; // 翻译后补充扫描计数
 const MAX_FOLLOWUPS = 3; // 最多补充扫描次数
@@ -511,7 +513,9 @@ function translateBatch(texts) {
 
 // 核心翻译函数：带锁 + 暂停 Observer 防循环 + SPA 延迟重试 + 翻译后补充扫描
 async function doTranslate() {
-  if (!autoTranslate || isTranslating || showingOriginal || contextInvalidated) return;
+  if (!autoTranslate || showingOriginal || contextInvalidated) return;
+  // 同一代号翻译进行中则跳过（translateGen 由 URL 变化时递增）
+  if (isTranslating && activeGen === translateGen) return;
   // 源语言与目标语言相同：无需翻译（如 zh-CN→zh-CN、en→en）
   if (sourceLang !== 'auto' && sourceLang === targetLang) return;
   // 页面级语言预判：整页主语言已是目标语言 → 跳过整页翻译
@@ -523,6 +527,8 @@ async function doTranslate() {
       return;
     }
   }
+  const myGen = translateGen; // 记录本次翻译代号
+  activeGen = myGen;
   isTranslating = true;
   observer.disconnect();
 
@@ -552,6 +558,11 @@ async function doTranslate() {
       const batchNodes = nodes.slice(i, i + BATCH);
       const texts = batchNodes.map((n) => n.nodeValue.trim());
       const translations = await translateBatch(texts);
+      // URL 已变化，本批结果作废（防止旧翻译插入新页面 / 重复插入）
+      if (myGen !== translateGen) {
+        console.log('[双语翻译] 页面已切换，放弃过期翻译结果');
+        return;
+      }
       batchNodes.forEach((node, j) => {
         const zh = translations[j];
         if (zh && zh.trim()) {
@@ -573,8 +584,7 @@ async function doTranslate() {
       console.log('[双语翻译] 发现', remaining.length, '个新节点，补充扫描 (第', followUpCount, '次)');
       isTranslating = false;
       if (!contextInvalidated) observer.observe(document.body, { childList: true, subtree: true });
-      clearTimeout(observerTimer);
-      observerTimer = setTimeout(doTranslate, 500);
+      setTimeout(doTranslate, 500);
       return;
     }
     followUpCount = 0; // 重置补充扫描计数
@@ -612,13 +622,9 @@ function loadConfigAndTranslate() {
   });
 }
 
-// Observer：SPA 动态加载新内容后自动翻译
-let observerTimer = null;
-const observer = new MutationObserver(() => {
-  if (!autoTranslate || isTranslating || showingOriginal || contextInvalidated) return;
-  clearTimeout(observerTimer);
-  observerTimer = setTimeout(doTranslate, 1500);
-});
+// Observer 由 initSpaNavDetection() 创建并赋值（统一处理 DOM 变化 + URL 变化）
+// doTranslate 里通过 observer.disconnect/observe 暂停/恢复
+let observer = null;
 
 safeStorageOnChanged((changes, area) => {
   if (area !== 'sync' || !isExtensionContextValid()) return;
@@ -685,33 +691,68 @@ safeRuntimeOnMessage((msg, sender, sendResponse) => {
 // —— SPA URL 变化检测 ——
 // Medium 等 SPA 网站通过 History API 切换页面时不会触发页面刷新，
 // content script 不会重新执行，需要主动检测 URL 变化并重新翻译。
-function onUrlChange() {
-  if (location.href === lastUrl) return;
-  lastUrl = location.href;
-  console.log('[双语翻译] SPA URL 变化:', location.href);
-  // 重置所有状态
-  spaRetryCount = 0;
-  followUpCount = 0;
-  isTranslating = false;
-  removeTranslations();
-  if (autoTranslate && !showingOriginal && !contextInvalidated) {
-    clearTimeout(observerTimer);
-    observerTimer = setTimeout(doTranslate, 500);
-  }
+// 采用业界标准做法：MutationObserver 监听 DOM 变化时对比 URL，
+// 因为 pushState hook / popstate 不可靠（?source= 导航、React reconciliation 不触发）。
+// 参考：YouTube SPA 检测方案（dev.to/ktg0215）
+function initSpaNavDetection() {
+  let lastUrl = location.href;
+  let navTimer = null;
+  let contentTimer = null;
+
+  // 这个 observer 统一处理所有 DOM 变化（避免多个 observer 导致重复翻译）
+  // 全局 observer 变量也指向它，doTranslate 里 disconnect/observe 引用正常
+  observer = new MutationObserver(() => {
+    if (location.href !== lastUrl) {
+      // ===== 场景1：URL 变化（SPA 导航） =====
+      lastUrl = location.href;
+      console.log('[双语翻译] SPA URL 变化(Observer):', location.href);
+      if (navTimer) clearTimeout(navTimer);
+      if (contentTimer) clearTimeout(contentTimer);
+      // 等 React 渲染完（1500ms）再重新翻译，防止收集到空 DOM
+      navTimer = setTimeout(() => {
+        navTimer = null;
+        translateGen++;          // 作废旧翻译
+        spaRetryCount = 0;
+        followUpCount = 0;
+        isTranslating = false;
+        removeTranslations();
+        if (autoTranslate && !showingOriginal && !contextInvalidated) {
+          doTranslate();
+        }
+        // 启动补充扫描：React 分批插入内容（Staff Picks 等），多次主动重扫
+        if (supplementTimer == null && autoTranslate && !showingOriginal && !contextInvalidated) {
+          const delays = [1500, 3000, 6000];
+          let i = 0;
+          const tick = () => {
+            if (contextInvalidated || !autoTranslate || showingOriginal || i >= delays.length) {
+              supplementTimer = null;
+              return;
+            }
+            const d = delays[i++];
+            supplementTimer = setTimeout(() => {
+              supplementTimer = null;
+              if (contextInvalidated || !autoTranslate || showingOriginal) return;
+              spaRetryCount = 0;
+              followUpCount = 0;
+              doTranslate();
+              tick();
+            }, d);
+          };
+          tick();
+        }
+      }, 1500);
+    } else {
+      // ===== 场景2：URL 没变但 DOM 变化（懒加载/无限滚动） =====
+      if (!autoTranslate || isTranslating || showingOriginal || contextInvalidated) return;
+      if (contentTimer) clearTimeout(contentTimer);
+      contentTimer = setTimeout(doTranslate, 800);
+    }
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+  window.addEventListener('pagehide', () => observer.disconnect(), { once: true });
 }
 
-// Hook History API
-const _origPushState = history.pushState;
-const _origReplaceState = history.replaceState;
-history.pushState = function () {
-  _origPushState.apply(this, arguments);
-  setTimeout(onUrlChange, 100);
-};
-history.replaceState = function () {
-  _origReplaceState.apply(this, arguments);
-  setTimeout(onUrlChange, 100);
-};
-window.addEventListener('popstate', onUrlChange);
+let supplementTimer = null; // 独立补充扫描定时器
 
 loadConfigAndTranslate();
-observer.observe(document.body, { childList: true, subtree: true });
+initSpaNavDetection();
