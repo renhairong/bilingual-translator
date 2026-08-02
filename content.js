@@ -200,7 +200,11 @@ function collectTextNodes(root) {
       // [修复3] 跳过译文 span 内部的文本 + 忽略特定标签
       // 注意：aria-hidden 只检查直接父级，不检查祖先（Medium 等网站祖先容器有 aria-hidden 但内容可见）
       const directParent = node.parentElement;
-      if (directParent && directParent.classList && directParent.classList.contains(TRANSLATED_SPAN_CLASS)) {
+      // 关键：跳过「原文包裹 span」(ai-original-text) 内部的文本节点！
+      // 否则第二次扫描时原文 textNode 会再次被收集 → 重复翻译（双份译文）
+      if (directParent && directParent.classList && (
+          directParent.classList.contains(TRANSLATED_SPAN_CLASS) ||
+          directParent.classList.contains(ORIGINAL_SPAN_CLASS))) {
         return NodeFilter.FILTER_REJECT;
       }
       if (directParent && directParent.getAttribute && directParent.getAttribute('aria-hidden') === 'true') {
@@ -424,6 +428,11 @@ function findClampedContainer(node) {
 }
 
 function insertTranslation(textNode, zh) {
+  // DOM 级防重（最后防线）：原文已被包裹（已翻译过）则绝不再插
+  const origParent = textNode.parentElement;
+  if (origParent && origParent.classList && origParent.classList.contains(ORIGINAL_SPAN_CLASS)) return;
+  // 旁边已有译文 span 也跳过
+  if (alreadyHasTranslation(textNode)) return;
   translated.add(textNode);
   const parent = textNode.parentElement;
   if (!parent) return;
