@@ -137,7 +137,11 @@ function matchesSourceLang(text, lang) {
     if (isPureNumbers(trimmed)) return false;
     // 2. 已经是目标语言的文本不翻
     if (isTargetLang(trimmed)) return false;
-    // 3. 没有任何可识别语言字符的纯符号/空白不翻
+    // 3. 短纯拉丁文本（≤4 字符，无 CJK）通常是缩写/术语（PDF/URL/API/UI），
+    //    在中文页面里翻译成"便携文档格式"之类反而难懂，统一跳过
+    const _s0 = charScript(trimmed);
+    if (_s0.latin > 0 && _s0.cjk === 0 && _s0.total <= 4) return false;
+    // 4. 没有任何可识别语言字符的纯符号/空白不翻
     //    至少 1 个拉丁字母或 1 个 CJK/假名/谚文字符即可（原来是 2 个，会漏掉单词如 "Boring"）
     const s = charScript(trimmed);
     const hasOneChar = s.latin + s.cjk + s.hiragana + s.katakana + s.hangul >= 1;
