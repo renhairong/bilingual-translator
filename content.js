@@ -567,7 +567,7 @@ async function doTranslate() {
     // 并行：同时发 3 批，总时间 ≈ 批次总数/3 × 单批时间
     // CONCURRENCY 控制同时请求数，避免触发 API 429 限流
     let okCount = 0, failCount = 0;
-    const CONCURRENCY = 3;
+    const CONCURRENCY = 4;
     const batches = [];
     for (let i = 0; i < nodes.length; i += BATCH) {
       batches.push(nodes.slice(i, i + BATCH));
