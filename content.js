@@ -562,26 +562,45 @@ async function doTranslate() {
     }
     spaRetryCount = 0; // 成功收集到节点，重置计数
 
+    // ===== 并发池翻译：同时发多个 batch，显著降低总等待时间 =====
+    // 串行：批1→批2→批3... 总时间 = 各批之和
+    // 并行：同时发 3 批，总时间 ≈ 批次总数/3 × 单批时间
+    // CONCURRENCY 控制同时请求数，避免触发 API 429 限流
     let okCount = 0, failCount = 0;
+    const CONCURRENCY = 3;
+    const batches = [];
     for (let i = 0; i < nodes.length; i += BATCH) {
-      const batchNodes = nodes.slice(i, i + BATCH);
-      const texts = batchNodes.map((n) => n.nodeValue.trim());
-      const translations = await translateBatch(texts);
-      // URL 已变化，本批结果作废（防止旧翻译插入新页面 / 重复插入）
-      if (myGen !== translateGen) {
-        console.log('[双语翻译] 页面已切换，放弃过期翻译结果');
-        return;
-      }
-      batchNodes.forEach((node, j) => {
-        const zh = translations[j];
-        if (zh && zh.trim()) {
-          insertTranslation(node, zh.trim());
-          okCount++;
-        } else {
-          failCount++;
-        }
-      });
+      batches.push(nodes.slice(i, i + BATCH));
     }
+    let bi = 0;
+    // 信号量式工作池：最多 CONCURRENCY 个请求同时进行
+    async function worker() {
+      while (bi < batches.length) {
+        const myIdx = bi++;
+        const batchNodes = batches[myIdx];
+        const texts = batchNodes.map((n) => n.nodeValue.trim());
+        const translations = await translateBatch(texts);
+        // URL 已变化，本批结果作废（防止旧翻译插入新页面 / 重复插入）
+        if (myGen !== translateGen) {
+          console.log('[双语翻译] 页面已切换，放弃过期翻译结果');
+          return;
+        }
+        batchNodes.forEach((node, j) => {
+          const zh = translations[j];
+          if (zh && zh.trim()) {
+            insertTranslation(node, zh.trim());
+            okCount++;
+          } else {
+            failCount++;
+          }
+        });
+      }
+    }
+    const workers = [];
+    for (let w = 0; w < Math.min(CONCURRENCY, batches.length); w++) {
+      workers.push(worker());
+    }
+    await Promise.all(workers);
     applyZhOnlyMode();
     console.log('[双语翻译] 翻译完成: 成功', okCount, '失败', failCount);
 
