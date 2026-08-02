@@ -8,7 +8,7 @@ const IGNORE_TAGS = new Set([
 const TRANSLATED_SPAN_CLASS = 'ai-translation-zh';
 const ORIGINAL_SPAN_CLASS = 'ai-original-text';
 const BODY_ZH_ONLY_CLASS = 'ai-translation-zh-only';
-const BATCH = 10;
+const BATCH = 20; // 每批发送给 API 的文本片段数（越大请求次数越少，总耗时越低；20~30 为甜点区间）
 
 let autoTranslate = true;
 let mode = 'bilingual';
