@@ -26,9 +26,15 @@ A Chrome/Edge extension that automatically translates web pages into Chinese usi
 
 ## Screenshots
 
-| Popup | Settings |
-|-------|----------|
-| ![Popup](screenshots/popup.png) | ![Settings](screenshots/options.png) |
+## Screenshots
+
+**Popup**
+
+![Popup](screenshots/popup.png)
+
+**Settings**
+
+![Settings](screenshots/options.png)
 
 ---
 

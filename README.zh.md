@@ -26,9 +26,13 @@
 
 ## 界面预览
 
-| 弹窗 | 设置页 |
-|------|--------|
-| ![弹窗](screenshots/popup.png) | ![设置页](screenshots/options.png) |
+**弹窗（popup）**
+
+![弹窗](screenshots/popup.png)
+
+**设置页（options）**
+
+![设置页](screenshots/options.png)
 
 ---
 
