@@ -100,16 +100,17 @@
 
       .footer {
         display: flex; align-items: center; justify-content: space-between;
-        margin-top: 6px; padding: 0 4px;
+        margin-top: 3px; padding: 0;
       }
       .version {
         font-size: 11px; color: var(--muted); font-family: ui-monospace, "SF Mono", Menlo, monospace;
       }
       .settings-btn {
-        width: 32px; height: 32px; padding: 0; border-radius: 8px;
+        width: 28px; height: 28px; padding: 0; border-radius: 7px;
         background: transparent; border: 1px solid transparent;
         display: flex; align-items: center; justify-content: center;
         cursor: pointer; transition: 0.18s;
+        margin-right: -2px; /* 贴右边缘，与版本号视觉对齐 */
       }
       .settings-btn:hover { background: #e9eaed; }
       .settings-btn svg { width: 18px; height: 18px; stroke: var(--ink-2); }
