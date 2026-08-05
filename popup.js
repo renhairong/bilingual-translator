@@ -56,7 +56,7 @@ function safeSendTabMessage(tabId, msg, cb) {
         const err = chrome.runtime.lastError.message;
         // 常见无害：目标页面不可访问、content script 未注入等
         if (err && /Receiving end does not exist|Could not establish connection/i.test(err)) {
-          console.log('[双语翻译] 当前页面无法接收消息，已忽略');
+          console.warn('[双语翻译] 消息发送失败（页面无 content script）：' + err);
         } else {
           console.warn('[双语翻译]', err);
         }
@@ -66,6 +66,7 @@ function safeSendTabMessage(tabId, msg, cb) {
       cb && cb(resp);
     });
   } catch (e) {
+    console.warn('[双语翻译] 消息发送异常：' + e.message);
     cb && cb({ ok: false, error: e.message });
   }
 }

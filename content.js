@@ -707,6 +707,11 @@ function loadConfigAndTranslate() {
     targetLang = c.targetLang || 'zh-CN';
     blockedSites = Array.isArray(c.blockedSites) ? c.blockedSites : [];
     applyZhOnlyMode();
+    // 保险：当前域名已被屏蔽 → 立即清除已有译文（防止任何时序问题导致翻译残留）
+    if (isCurrentSiteBlocked()) {
+      removeTranslations();
+      return;
+    }
     if (autoTranslate) doTranslate();
   });
 }
