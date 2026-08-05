@@ -53,20 +53,15 @@ function safeSendTabMessage(tabId, msg, cb) {
   try {
     chrome.tabs.sendMessage(tabId, msg, (resp) => {
       if (chrome.runtime.lastError) {
-        const err = chrome.runtime.lastError.message;
-        // 常见无害：目标页面不可访问、content script 未注入等
-        if (err && /Receiving end does not exist|Could not establish connection/i.test(err)) {
-          console.warn('[双语翻译] 消息发送失败（页面无 content script）：' + err);
-        } else {
-          console.warn('[双语翻译]', err);
-        }
-        cb && cb({ ok: false, error: err });
+        // 静默失败：通常是 Edge 自身页面（edge://、chrome://、about:、PDF 等）
+        // 这些页面不允许注入 content script，必然失败，是预期行为。
+        // 上版用 console.warn 会让 Edge 把扩展标记为'有问题'，已改为静默。
+        cb && cb({ ok: false, error: chrome.runtime.lastError.message });
         return;
       }
       cb && cb(resp);
     });
   } catch (e) {
-    console.warn('[双语翻译] 消息发送异常：' + e.message);
     cb && cb({ ok: false, error: e.message });
   }
 }
@@ -163,6 +158,13 @@ function hostOfTab(tab) {
   try { return normalizeHost(new URL(tab.url).host); } catch (e) { return null; }
 }
 
+// 当前 tab 是否支持注入 content script（基于 URL 协议判断）
+// chrome:// / edge:// / about: / 扩展自己的页等不允许注入
+function isUnsupportedPage(tab) {
+  const u = (tab && tab.url) || '';
+  return /^(chrome|edge|about|chrome-extension|chrome-search|devtools|view-source):/i.test(u);
+}
+
 // 初始化「不翻译该网页」开关：显示当前域名，状态从 storage 判断
 function initSiteBlock() {
   if (!hasChrome) return;
@@ -178,6 +180,26 @@ function initSiteBlock() {
   });
 }
 initSiteBlock();
+
+// 检测当前 tab 是否支持翻译，必要时禁用按钮 + 显示提示
+function checkPageSupport() {
+  if (!hasChrome) return;
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const tab = tabs[0];
+    if (!tab || isUnsupportedPage(tab)) {
+      // 显示提示，禁用需要 content script 的按钮
+      $('siteName').textContent = '当前页面不支持翻译';
+      $('siteBlock').disabled = true;
+      $('toggle').disabled = true;
+      $('retranslate').disabled = true;
+      $('remove').disabled = true;
+      // 语言选择可以保留（用于设置页时仍可改默认语言，但重翻会失败——也禁）
+      $('sourceLang').disabled = true;
+      $('targetLang').disabled = true;
+    }
+  });
+}
+checkPageSupport();
 
 // 切换「不翻译该网页」：更新 blockedSites + 通知当前页即时生效
 $('siteBlock').addEventListener('change', (e) => {
