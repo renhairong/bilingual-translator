@@ -498,9 +498,9 @@ function insertTranslation(textNode, zh) {
   textNode.parentNode.insertBefore(orig, textNode);
   orig.appendChild(textNode);
 
-  // 提取原文所在上下文链上的背景色（高亮背景）
-  // 这样无论用户选「默认样式」还是「自定义样式」，译文都能继承原网页的高亮背景
-  const inheritBg = getEffectiveBackgroundColor(parent);
+  // 不再继承原文背景色：避免某些场景（深色背景页面 / 卡片覆盖）
+  // 把"白色"继承给译文导致看不见。译文背景保持透明。
+  const inheritBg = '';
 
   // 插入译文 span
   const span = document.createElement('span');
