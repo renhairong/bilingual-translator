@@ -29,7 +29,31 @@ let followUpCount = 0; // 翻译后补充扫描计数
 const MAX_FOLLOWUPS = 3; // 最多补充扫描次数
 let lastUrl = location.href; // SPA URL 变化检测
 
+// 公共后缀（Public Suffix）精简列表：
+// github.io / co.uk / com.cn 等本身不是站点主域，取最后两级会解析错
+const PUBLIC_SUFFIXES = new Set([
+  'co.uk', 'org.uk', 'ac.uk', 'gov.uk', 'me.uk', 'net.uk', 'ltd.uk', 'plc.uk',
+  'com.cn', 'net.cn', 'org.cn', 'gov.cn', 'edu.cn', 'ac.cn',
+  'com.au', 'net.au', 'org.au', 'edu.au', 'gov.au',
+  'co.jp', 'ne.jp', 'or.jp', 'ac.jp', 'go.jp',
+  'com.br', 'net.br', 'org.br', 'gov.br', 'edu.br',
+  'com.mx', 'org.mx', 'net.mx', 'edu.mx',
+  'com.tw', 'org.tw', 'net.tw', 'edu.tw', 'gov.tw', 'idv.tw',
+  'co.in', 'net.in', 'org.in', 'ac.in', 'gov.in', 'edu.in',
+  'co.kr', 'or.kr', 'ne.kr', 'ac.kr', 'go.kr', 're.kr',
+  'com.sg', 'net.sg', 'org.sg', 'edu.sg', 'gov.sg',
+  'com.hk', 'net.hk', 'org.hk', 'edu.hk', 'gov.hk',
+  'com.my', 'net.my', 'org.my', 'edu.my', 'gov.my',
+  'co.nz', 'net.nz', 'org.nz', 'ac.nz', 'govt.nz',
+  'co.za', 'org.za', 'net.za', 'gov.za', 'ac.za',
+  'github.io', 'githubusercontent.com', 'gitlab.io', 'pages.dev', 'vercel.app',
+  'netlify.app', 'surge.sh', 'firebaseapp.com', 'web.app', 'onrender.com',
+  'repl.co', 'glitch.me', 'herokuapp.com', 'azurewebsites.net',
+  'appspot.com', '000webhostapp.com', 'infinityfreeapp.com'
+]);
+
 // 归一化 host：普通域名提取主域名（news.medium.com → medium.com）
+// 公共后缀域名保留两级以上（myuser.github.io → myuser.github.io）
 // localhost / IP（含端口）保留完整 host（localhost:8137 独立生效）
 // 与 popup.js 的 normalizeHost 保持一致，保证存储与匹配一致
 function normalizeHost(host) {
@@ -37,7 +61,18 @@ function normalizeHost(host) {
   const hostOnly = h.split(':')[0];
   if (hostOnly === 'localhost' || /^\d+\.\d+\.\d+\.\d+$/.test(hostOnly)) return h;
   const parts = hostOnly.split('.');
-  if (parts.length > 2) h = parts.slice(-2).join('.');
+  if (parts.length > 2) {
+    // 找"公共后缀"占了几个段：
+    //   medium.com            → 后缀 1 段(com)   → 主域 medium.com
+    //   news.medium.com       → 后缀 1 段(com)   → 主域 medium.com
+    //   myuser.github.io      → 后缀 2 段(github.io) → 主域 myuser.github.io
+    //   example.co.uk         → 后缀 2 段(co.uk) → 主域 example.co.uk
+    //   shop.example.com.cn   → 后缀 2 段(com.cn) → 主域 example.com.cn
+    let suffixLen = 1;
+    if (PUBLIC_SUFFIXES.has(parts.slice(-2).join('.'))) suffixLen = 2;
+    // 主域 = 后缀前一级 + 后缀（至少两段）
+    h = parts.slice(-suffixLen - 1).join('.');
+  }
   return h;
 }
 
