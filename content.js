@@ -23,10 +23,30 @@ let contextInvalidated = false; // 扩展重载后上下文失效，后续翻译
 let spaRetryCount = 0; // SPA 页面延迟重试计数
 let translateGen = 0; // 翻译代号：URL 变化时自增，旧翻译作废
 let activeGen = -1; // 当前正在进行的翻译代号
+let blockedSites = []; // 用户屏蔽的网站域名列表（「不翻译该网页」）
 const SPA_RETRY_DELAYS = [800, 1500, 3000]; // 重试间隔（ms）
 let followUpCount = 0; // 翻译后补充扫描计数
 const MAX_FOLLOWUPS = 3; // 最多补充扫描次数
 let lastUrl = location.href; // SPA URL 变化检测
+
+// 归一化 host：普通域名提取主域名（news.medium.com → medium.com）
+// localhost / IP（含端口）保留完整 host（localhost:8137 独立生效）
+// 与 popup.js 的 normalizeHost 保持一致，保证存储与匹配一致
+function normalizeHost(host) {
+  let h = (host || '').replace(/^www\./, '').toLowerCase();
+  const hostOnly = h.split(':')[0];
+  if (hostOnly === 'localhost' || /^\d+\.\d+\.\d+\.\d+$/.test(hostOnly)) return h;
+  const parts = hostOnly.split('.');
+  if (parts.length > 2) h = parts.slice(-2).join('.');
+  return h;
+}
+
+// 当前页面域名是否被屏蔽（「不翻译该网页」开启）
+function isCurrentSiteBlocked() {
+  if (!blockedSites || blockedSites.length === 0) return false;
+  const host = normalizeHost(location.host);
+  return blockedSites.some((s) => host === normalizeHost(s));
+}
 
 // 语言名称映射（用于提示词）
 const LANG_NAMES = {
@@ -523,6 +543,11 @@ function translateBatch(texts) {
 // 核心翻译函数：带锁 + 暂停 Observer 防循环 + SPA 延迟重试 + 翻译后补充扫描
 async function doTranslate() {
   if (!autoTranslate || showingOriginal || contextInvalidated) return;
+  // 网站级屏蔽：「不翻译该网页」开启的域名不翻译
+  if (isCurrentSiteBlocked()) {
+    console.log('[双语翻译] 当前网站已被屏蔽(' + normalizeHost(location.host) + ')，跳过翻译');
+    return;
+  }
   // 同一代号翻译进行中则跳过（translateGen 由 URL 变化时递增）
   if (isTranslating && activeGen === translateGen) return;
   // 源语言与目标语言相同：无需翻译（如 zh-CN→zh-CN、en→en）
@@ -637,7 +662,7 @@ function removeTranslations() {
 }
 
 function loadConfigAndTranslate() {
-  safeStorageGet(['autoTranslate', 'mode', 'styleMode', 'zhColor', 'zhSize', 'sourceLang', 'targetLang'], (c) => {
+  safeStorageGet(['autoTranslate', 'mode', 'styleMode', 'zhColor', 'zhSize', 'sourceLang', 'targetLang', 'blockedSites'], (c) => {
     autoTranslate = c.autoTranslate !== false;
     mode = c.mode || 'bilingual';
     // 首次使用默认继承；老用户（只有 zhColor 没有 styleMode）保持自定义以兼容旧行为
@@ -645,6 +670,7 @@ function loadConfigAndTranslate() {
     styleCfg = { color: c.zhColor, size: c.zhSize };
     sourceLang = c.sourceLang || 'auto';
     targetLang = c.targetLang || 'zh-CN';
+    blockedSites = Array.isArray(c.blockedSites) ? c.blockedSites : [];
     applyZhOnlyMode();
     if (autoTranslate) doTranslate();
   });
@@ -662,6 +688,21 @@ safeStorageOnChanged((changes, area) => {
     showingOriginal = false;
     if (!autoTranslate) removeTranslations();
     else { removeTranslations(); doTranslate(); }
+  }
+
+  if (changes.blockedSites) {
+    blockedSites = Array.isArray(changes.blockedSites.newValue) ? changes.blockedSites.newValue : [];
+    if (isCurrentSiteBlocked()) {
+      // 当前网站被屏蔽：清除已翻译内容，停止翻译
+      console.log('[双语翻译] 网站被屏蔽，移除译文');
+      removeTranslations();
+      showingOriginal = false;
+    } else if (autoTranslate && !showingOriginal) {
+      // 解除屏蔽：清除「显示原文」状态并重新翻译
+      showingOriginal = false;
+      removeTranslations();
+      doTranslate();
+    }
   }
 
   if (changes.mode) {
@@ -712,6 +753,18 @@ safeRuntimeOnMessage((msg, sender, sendResponse) => {
   } else if (msg.type === 'langChange') {
     sourceLang = msg.sourceLang || 'auto';
     targetLang = msg.targetLang || 'zh-CN';
+    sendResponse({ ok: true });
+  } else if (msg.type === 'siteBlock') {
+    // popup 切换「不翻译该网页」：同步内存状态并即时处理当前页
+    blockedSites = Array.isArray(msg.blockedSites) ? msg.blockedSites : blockedSites;
+    if (isCurrentSiteBlocked()) {
+      showingOriginal = false;
+      removeTranslations();
+    } else if (autoTranslate) {
+      showingOriginal = false;
+      removeTranslations();
+      doTranslate();
+    }
     sendResponse({ ok: true });
   }
 });

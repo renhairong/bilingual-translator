@@ -109,6 +109,60 @@ $('toggle').addEventListener('change', (e) => {
   activeTab((tabId) => { if (tabId != null) safeSendTabMessage(tabId, { type: 'toggle', value: v }); });
 });
 
+// 归一化 host：普通域名提取主域名（news.medium.com → medium.com）
+// localhost / IP（含端口）保留完整 host（localhost:8137 独立生效）
+// 与 content.js 的 normalizeHost 保持一致，保证存储与匹配一致
+function normalizeHost(host) {
+  let h = (host || '').replace(/^www\./, '').toLowerCase();
+  const hostOnly = h.split(':')[0];
+  if (hostOnly === 'localhost' || /^\d+\.\d+\.\d+\.\d+$/.test(hostOnly)) return h;
+  const parts = hostOnly.split('.');
+  if (parts.length > 2) h = parts.slice(-2).join('.');
+  return h;
+}
+
+// 从 tab.url 解析 host（含端口），归一化到主域名
+function hostOfTab(tab) {
+  if (!tab || !tab.url) return null;
+  try { return normalizeHost(new URL(tab.url).host); } catch (e) { return null; }
+}
+
+// 初始化「不翻译该网页」开关：显示当前域名，状态从 storage 判断
+function initSiteBlock() {
+  if (!hasChrome) return;
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const tab = tabs[0];
+    const host = hostOfTab(tab);
+    if (!host) return;
+    $('siteName').textContent = host;
+    store.get(['blockedSites'], (c) => {
+      const blocked = Array.isArray(c.blockedSites) ? c.blockedSites : [];
+      $('siteBlock').checked = blocked.some((s) => host === normalizeHost(s));
+    });
+  });
+}
+initSiteBlock();
+
+// 切换「不翻译该网页」：更新 blockedSites + 通知当前页即时生效
+$('siteBlock').addEventListener('change', (e) => {
+  const on = e.target.checked;
+  if (!hasChrome) return;
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const tab = tabs[0];
+    const host = hostOfTab(tab);
+    if (!host || tab.id == null) return;
+    store.get(['blockedSites'], (c) => {
+      const blocked = Array.isArray(c.blockedSites) ? c.blockedSites.slice() : [];
+      const idx = blocked.findIndex((s) => host === normalizeHost(s));
+      if (on && idx === -1) blocked.push(host);
+      if (!on && idx !== -1) blocked.splice(idx, 1);
+      store.set({ blockedSites: blocked }, () => {
+        safeSendTabMessage(tab.id, { type: 'siteBlock', blockedSites: blocked });
+      });
+    });
+  });
+});
+
 // 语言切换：保存并触发重翻
 function onLangChange() {
   const sourceLang = $('sourceLang').value;
