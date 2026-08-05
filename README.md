@@ -17,6 +17,10 @@ A Chrome/Edge extension that automatically translates web pages into Chinese usi
 - **Any AI model** — Works with any OpenAI-compatible API (DeepSeek, Qwen, GLM, etc.)
 - **Per-model API keys** — Each model can have its own API key stored separately
 - **Translation cache** — Caches translations to save API calls; supports per-page and full cache clearing
+- **Don't translate this site** — Block by main domain (including subdomains), e.g. `news.medium.com` → `medium.com`; once blocked, no pages under that domain will be translated
+- **Smart domain parsing** — Uses the Public Suffix List (psl) to precisely identify main domains, correctly handling public suffixes like `co.uk`, `com.cn`, `github.io`
+- **SPA support** — Automatically detects route changes on single-page apps (Medium, etc.) and re-translates
+- **Faster translation** — Concurrent requests + batched translation significantly reduce full-page translation time
 - **Customizable styles** — Adjust translation text color and font size
 - **Error notification** — Friendly error messages shown in the popup when something goes wrong
 
@@ -81,11 +85,14 @@ Click the preset buttons (DeepSeek / Qwen / GLM) to auto-fill, or enter your own
 
 ### From the Popup
 
-| Button | Action |
+| Button / Toggle | Action |
 |--------|--------|
 | **Re-translate this page** | Clears existing translations and re-translates the page |
 | **Show original** | Removes translations and prevents auto re-translate |
 | **Auto-translate toggle** | Enables or disables automatic translation |
+| **Don't translate this site toggle** | Blocks the current site's main domain (including all subdomains); once enabled, no pages under that domain will be translated |
+
+> **About "Don't translate this site"**: When enabled, the main domain is saved (e.g. `news.medium.com` → `medium.com`), and no pages under that domain (including subdomains) will be translated. `localhost` / IP addresses are tracked per-port (`localhost:8137` and `localhost:3000` are independent). On pages where the extension cannot run (`edge://`, extension store, etc.), the related buttons are auto-disabled with a hint.
 
 ### Cache Management
 
@@ -127,9 +134,10 @@ See the full [Privacy Policy](privacy.html) for details.
 ## Tech Stack
 
 - Manifest V3
-- Chrome Extension APIs (`storage`, `unlimitedStorage`)
+- Chrome Extension APIs (`storage`, `unlimitedStorage`, `tabs`)
 - OpenAI-compatible API interface
 - Vanilla JavaScript (no frameworks)
+- [Public Suffix List](https://publicsuffix.org/) (psl library for precise domain parsing)
 
 ---
 
