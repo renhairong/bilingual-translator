@@ -668,8 +668,122 @@ function removeTranslations() {
   document.body.classList.remove(BODY_ZH_ONLY_CLASS);
 }
 
+// ===== 隐藏空白区域（广告特征空容器） =====
+let hideEmptyContainers = false; // 「隐藏空白区域」开关
+const emptyCandidates = new WeakSet(); // 幂等标记：已入队的空容器
+const hiddenEmptySet = new WeakSet(); // 幂等标记：已隐藏的容器
+let pendingEmptyList = []; // 待 5s 确认的空容器
+let pendingRecoverList = []; // 已隐藏、30s 窗口内待恢复监听的容器
+let emptyTimer = null; // 批量观察定时器（5s）
+let recoverTimer = null; // 恢复窗口清理定时器（30s）
+const EMPTY_WATCH_MS = 5000; // 观察期：空容器 5s 仍未填充才隐藏
+const EMPTY_RECOVER_MS = 30000; // 恢复窗口：隐藏后 30s 内内容出现则恢复
+
+// 广告特征白名单：只看元素自身属性（data-component / id / class）
+function hasAdHint(el) {
+  const attrs = [
+    el.getAttribute && (el.getAttribute('data-component') || ''),
+    el.getAttribute && (el.getAttribute('id') || ''),
+    el.className && String(el.className)
+  ].filter(Boolean).join(' ');
+  return /(^|[\s_-])ad([\s_-]|$)|advert|sponsor|promo|banner/i.test(attrs);
+}
+
+// 容器是否「真正为空」：无可见文本、无 img/video/iframe 子节点
+function isEmptyContainer(el) {
+  // 有可见文本（含 0 宽空格之外的非空白字符）
+  const txt = (el.textContent || '').trim();
+  if (txt.length > 0) return false;
+  // 有媒体/iframe 子节点 → 不算空（广告在 iframe 内也视为有内容）
+  if (el.querySelector('img, video, iframe, canvas, audio')) return false;
+  return true;
+}
+
+// 检查容器是否有占位高度（>40px 或设了 min-height）
+function hasPlaceholderHeight(el) {
+  const rect = el.getBoundingClientRect();
+  if (rect.height > 40) return true;
+  const cs = getComputedStyle(el);
+  const mh = parseFloat(cs.minHeight || '0');
+  return mh > 40;
+}
+
+// 加入待观察队列（幂等：已在 hiddenSet 或 candidates 的不重复）
+function queueEmptyCandidate(el) {
+  if (!hideEmptyContainers || !el || el.nodeType !== 1) return;
+  if (hiddenEmptySet.has(el) || emptyCandidates.has(el)) return;
+  // 只处理最内层：父级是候选/已隐藏则跳过（避免层层隐藏破坏布局）
+  let parent = el.parentElement;
+  while (parent && parent !== document.body) {
+    if (hiddenEmptySet.has(parent) || emptyCandidates.has(parent) || hasAdHint(parent)) return;
+    parent = parent.parentElement;
+  }
+  emptyCandidates.add(el);
+  pendingEmptyList.push(el);
+  if (!emptyTimer) {
+    emptyTimer = setTimeout(confirmEmptyCandidates, EMPTY_WATCH_MS);
+  }
+}
+
+// 5s 后确认：仍空 + 有占位高度 → 隐藏 + 进入恢复窗口
+function confirmEmptyCandidates() {
+  emptyTimer = null;
+  if (!hideEmptyContainers) { pendingEmptyList = []; return; }
+  const list = pendingEmptyList.splice(0);
+  let anyHidden = false;
+  for (const el of list) {
+    if (!el.isConnected) continue; // 已从 DOM 移除
+    if (isEmptyContainer(el) && hasPlaceholderHeight(el)) {
+      el.style.display = 'none';
+      hiddenEmptySet.add(el);
+      pendingRecoverList.push(el);
+      anyHidden = true;
+    }
+  }
+  if (anyHidden && !recoverTimer) {
+    recoverTimer = setTimeout(() => {
+      recoverTimer = null;
+      pendingRecoverList = []; // 30s 到：停止监听，保持隐藏
+    }, EMPTY_RECOVER_MS);
+  }
+}
+
+// 恢复检查：observer 回调中调用——隐藏的容器出现内容则恢复显示
+function checkHiddenRecovery() {
+  if (pendingRecoverList.length === 0) return;
+  const list = pendingRecoverList.splice(0);
+  for (const el of list) {
+    if (!el.isConnected) continue; // 已移除，丢弃
+    if (!isEmptyContainer(el)) {
+      el.style.display = '';
+      hiddenEmptySet.delete(el);
+    } else {
+      pendingRecoverList.push(el); // 仍空，继续观察
+    }
+  }
+}
+
+// 关闭开关/SPA 跳转时：恢复所有已隐藏容器
+function restoreHiddenContainers() {
+  for (const el of pendingRecoverList) {
+    if (el.isConnected) el.style.display = '';
+  }
+  pendingRecoverList = [];
+  pendingEmptyList = [];
+  if (emptyTimer) { clearTimeout(emptyTimer); emptyTimer = null; }
+  if (recoverTimer) { clearTimeout(recoverTimer); recoverTimer = null; }
+}
+
+// 初始化后立即扫描一次当前页面已有的空容器
+function scanExistingEmptyContainers() {
+  if (!hideEmptyContainers) return;
+  document.querySelectorAll('[data-component], [id], [class]').forEach((el) => {
+    if (hasAdHint(el)) queueEmptyCandidate(el);
+  });
+}
+
 function loadConfigAndTranslate() {
-  safeStorageGet(['autoTranslate', 'mode', 'styleMode', 'zhColor', 'zhSize', 'sourceLang', 'targetLang', 'blockedSites'], (c) => {
+  safeStorageGet(['autoTranslate', 'mode', 'styleMode', 'zhColor', 'zhSize', 'sourceLang', 'targetLang', 'blockedSites', 'hideEmptyContainers'], (c) => {
     autoTranslate = c.autoTranslate !== false;
     mode = c.mode || 'bilingual';
     // 首次使用默认继承；老用户（只有 zhColor 没有 styleMode）保持自定义以兼容旧行为
@@ -678,7 +792,10 @@ function loadConfigAndTranslate() {
     sourceLang = c.sourceLang || 'auto';
     targetLang = c.targetLang || 'zh-CN';
     blockedSites = Array.isArray(c.blockedSites) ? c.blockedSites : [];
+    hideEmptyContainers = c.hideEmptyContainers === true;
     applyZhOnlyMode();
+    // 「隐藏空白区域」开启 → 扫描当前页面已有的空容器
+    if (hideEmptyContainers) scanExistingEmptyContainers();
     // 保险：当前域名已被屏蔽 → 立即清除已有译文（防止任何时序问题导致翻译残留）
     if (isCurrentSiteBlocked()) {
       removeTranslations();
@@ -714,6 +831,17 @@ safeStorageOnChanged((changes, area) => {
       showingOriginal = false;
       removeTranslations();
       doTranslate();
+    }
+  }
+
+  if (changes.hideEmptyContainers) {
+    hideEmptyContainers = changes.hideEmptyContainers.newValue === true;
+    if (hideEmptyContainers) {
+      // 开启：扫描当前页面已有的空容器
+      scanExistingEmptyContainers();
+    } else {
+      // 关闭：恢复所有已隐藏容器
+      restoreHiddenContainers();
     }
   }
 
@@ -799,6 +927,8 @@ function initSpaNavDetection() {
     console.log('[双语翻译] SPA URL 变化:', location.href);
     if (navTimer) clearTimeout(navTimer);
     if (contentTimer) clearTimeout(contentTimer);
+    // 「隐藏空白区域」：SPA 切换 → 恢复旧页面隐藏的容器 + 重置队列
+    restoreHiddenContainers();
     navTimer = setTimeout(() => {
       navTimer = null;
       translateGen++;          // 作废旧翻译
@@ -835,7 +965,18 @@ function initSpaNavDetection() {
 
   // 方案1：MutationObserver 监听 DOM 变化时对比 URL
   // 覆盖普通 SPA 导航（React 重新渲染 DOM）
-  observer = new MutationObserver(() => {
+  observer = new MutationObserver((mutations) => {
+    // 「隐藏空白区域」：新增节点里有广告特征容器 → 入队观察；
+    // 已隐藏容器出现内容 → 恢复显示
+    if (hideEmptyContainers) {
+      checkHiddenRecovery();
+      for (const m of mutations) {
+        if (m.type !== 'childList') continue;
+        for (const n of m.addedNodes) {
+          if (n.nodeType === 1 && hasAdHint(n)) queueEmptyCandidate(n);
+        }
+      }
+    }
     if (location.href !== lastUrl) {
       handleUrlChange();
     } else {

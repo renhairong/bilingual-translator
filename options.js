@@ -8,7 +8,7 @@ const PRESETS = {
 };
 
 const KEY_FIELDS = Object.values(PRESETS).map(p => p.keyField);
-const fields = ['baseUrl', 'apiKey', 'model', 'autoTranslate', 'mode', 'styleMode', 'zhColor', 'sourceLang', 'targetLang', ...KEY_FIELDS];
+const fields = ['baseUrl', 'apiKey', 'model', 'autoTranslate', 'hideEmptyContainers', 'mode', 'styleMode', 'zhColor', 'sourceLang', 'targetLang', ...KEY_FIELDS];
 
 const DEFAULTS = {
   baseUrl: PRESETS.deepseek.baseUrl,
@@ -101,6 +101,7 @@ store.get(fields, (c) => {
   $('apiKey').value = apiKey;
   $('model').value = model;
   $('autoTranslate').checked = c.autoTranslate !== false;
+  $('hideEmptyContainers').checked = c.hideEmptyContainers === true;
   $('mode').value = c.mode || 'bilingual';
   $('sourceLang').value = c.sourceLang || 'auto';
   $('targetLang').value = c.targetLang || 'zh-CN';
@@ -219,6 +220,7 @@ $('save').addEventListener('click', () => {
     model,
     [keyField]: apiKey,
     autoTranslate: $('autoTranslate').checked,
+    hideEmptyContainers: $('hideEmptyContainers').checked,
     mode: $('mode').value,
     sourceLang: $('sourceLang').value,
     targetLang: $('targetLang').value,
