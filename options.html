@@ -155,20 +155,20 @@
       .switch input:checked + .slider::before { transform: translateX(19px); }
 
       /* 译文样式选项 */
-      .style-options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+      .style-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
       .radio-row {
-        display: flex; align-items: flex-start; gap: 10px;
-        padding: 12px; border: 1px solid var(--line); border-radius: 10px;
+        display: flex; align-items: flex-start; gap: 8px;
+        padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px;
         cursor: pointer; transition: all 0.18s;
       }
       .radio-row:hover { border-color: var(--brand); }
       .radio-row:has(input:checked) {
         border-color: var(--brand); background: var(--brand-soft);
       }
-      .radio-row input { margin-top: 2px; accent-color: var(--brand); }
-      .radio-text { display: flex; flex-direction: column; gap: 2px; }
+      .radio-row input { margin-top: 2px; accent-color: var(--brand); flex-shrink: 0; }
+      .radio-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
       .radio-text b { font-size: 13px; font-weight: 550; color: var(--ink); }
-      .radio-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+      .radio-desc { font-size: 12px; color: var(--muted); line-height: 1.4; }
       .custom-style-fields {
         padding: 12px; background: #f8f9fb; border-radius: 10px;
         border: 1px solid var(--line); display: none;
@@ -357,14 +357,14 @@
               <input type="radio" name="styleMode" value="inherit" id="styleModeInherit" checked />
               <span class="radio-text">
                 <b>默认样式</b>
-                <span class="radio-desc">继承原网页的文字颜色、大小、粗细、下划线及背景样式</span>
+                <span class="radio-desc">继承原网页文字样式</span>
               </span>
             </label>
             <label class="radio-row">
               <input type="radio" name="styleMode" value="custom" id="styleModeCustom" />
               <span class="radio-text">
                 <b>自定义样式</b>
-                <span class="radio-desc">使用自定义文字颜色及大小（布局与默认样式一致，无边框/背景块）</span>
+                <span class="radio-desc">统一使用自定义文字颜色</span>
               </span>
             </label>
           </div>
