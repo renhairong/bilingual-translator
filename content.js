@@ -676,7 +676,7 @@ let pendingEmptyList = []; // 待 5s 确认的空容器
 let pendingRecoverList = []; // 已隐藏、30s 窗口内待恢复监听的容器
 let emptyTimer = null; // 批量观察定时器（5s）
 let recoverTimer = null; // 恢复窗口清理定时器（30s）
-const EMPTY_WATCH_MS = 5000; // 观察期：空容器 5s 仍未填充才隐藏
+const EMPTY_WATCH_MS = 2000; // 观察期：空容器 2s 仍未填充才隐藏
 const EMPTY_RECOVER_MS = 30000; // 恢复窗口：隐藏后 30s 内内容出现则恢复
 
 // 广告特征白名单：只看元素自身属性（data-component / id / class）
